@@ -91,13 +91,14 @@ The full spec, with the shaders, palettes, proportions and face grids, is in `cl
 
 ## Where the plan is
 
-Phases: 0 dev tooling, 1 engine split, 2 chapter 1 solo slice, 3 chapters 4 and 7, 4 co-op and cross-play, 5 the rest of the campaign. Each task has a number, a "done when" and a size in `claude/campaign-plan.md`.
+Phases: 0 dev tooling (done), 1 engine split, 2 chapter 1 solo slice, 3 chapters 4 and 7, 4 the full campaign solo, 5 co-op and cross-play. Each task has a number, a "done when" and a size in `claude/campaign-plan.md`.
 
 **Now:** task 1.1 is done (`dev/boot.html` boots three r149 from the module build) but still needs a check on the Quest. Next is 1.2: extract `engine/` (renderer, XR session, input, frame loop, bullet time clock) so both games use it with no visible change.
 
 ## Decision log
 
-- Last Drop is solo-first; co-op is added in phase 4. Any mix of VR and desktop works in co-op.
+- Last Drop is solo-first: the whole campaign is finished and playable alone (phase 4) before co-op is built (phase 5). Any mix of VR and desktop works in co-op.
+- Build solo code network-ready: every change to game state (damage, pickups, the bag, doors, the slow-mo meter) goes through events from pure rule modules, never straight from input. Solo applies events locally; co-op will send the same events.
 - The dive (shootdodge) is cut. Movement is walk and small jump, Showdowns style.
 - Saves are password codes (8 characters, 7 data + 1 check, no look-alike characters), like old console games.
 - Downed players are **stunned standing**: grey vision, no shooting, view never moves. Co-op partners revive with one real slap; solo players stab an adrenaline shot (one per chapter).
