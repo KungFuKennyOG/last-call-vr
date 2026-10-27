@@ -49,6 +49,9 @@ export function createGame({ renderer, scene, camera, rig, world, player, hud, b
   G.voice = createVoice({ where: who => { if (who === 'mo' && G.mo) return G.mo.group.position.clone().setY(1.8); const e = G.enemies.list.find(x => (who === 'expediter' ? x.boss : who === 'grabber' ? x.type === 'grabber' : !x.boss)); return e ? e.group.position.clone().setY(1.6) : null; } });
   G.cards = createCards({ scene, camera });
   G.canShoot = () => G.stun.canShoot();
+  // in the headset, the big messages float in front of you instead of on the browser HUD
+  const hudMessage = hud.message;
+  hud.message = (text, secs = 1.6) => { hudMessage(text, secs); if (mode() === 'vr' && text) G.fx.popupFront(text, '', '#ebe8e1', 1, secs); };
   G.muzzleFlash = () => {};
 
   /* ---------- the chapter and its beats ---------- */
@@ -148,7 +151,7 @@ export function createGame({ renderer, scene, camera, rig, world, player, hud, b
     if (!checkpoint) { G.start(); return; }
     G.restarting = true;
     hud.message(RESTART_MSG[reason] || 'AGAIN', 1.6);
-    setTimeout(() => chapter.transit(() => {
+    setTimeout(() => G.state === 'playing' && chapter.transit(() => {
       clearFight();
       const snap = restoreCheckpoint(checkpoint);
       player.hp = snap.players.p1.hp; player.greyTarget = 0; player.grey = 0; player.slow = 1;
@@ -166,6 +169,7 @@ export function createGame({ renderer, scene, camera, rig, world, player, hud, b
   G.stats = null;
   G.start = () => {
     clearFight(); G.cards.hide(); title.keypad.group.visible = false;
+    Object.assign(chapter, { inTransit: false, fadeDir: 0, fading: 0, pending: null });
     G.stats = { time: 0, kills: 0, headshots: 0, disarms: 0, breachKills: 0, gunStuns: 0, civilians: 0, stuns: 0 };
     G.score = 0; G.bounty = 0; hud.bounty = 0; G.note = 'PICK UP ORDER #0447 AT THE COUNTER'; G.moOnRadio = false;
     checkpoint = null; cpExtra = null; G.restarting = false;

@@ -92,7 +92,7 @@ A seven-chapter campaign over one rainy night, in a PS1-style look. Two couriers
 - A pistol in each hand, always. Point a gun at the floor to reload. Kills refill bullet time (Y or right stick click) and add two rounds.
 - The bag rides on your back. Grabbers go for it and run for a door: drop them and walk over the bag to take it back. If one gets out, the checkpoint restarts.
 - Shoot a cook's gun hand to disarm him: he runs, begs, rushes you bare-handed or goes back for the gun. Disarms are worth the most style.
-- Grip picks things up (Q in the browser): a dropped Uzi, a cleaver (trigger throws it, and it kills), the extinguisher on the wall (hold the trigger to spray: puts out fires, chokes cooks). With nothing in reach, B or grip throws what you hold; a thrown gun stuns.
+- Grip picks things up (Q in the browser): a dropped Uzi, a cleaver (trigger throws it, and it kills), the extinguisher on the wall (hold the trigger to spray: puts out fires, chokes cooks). With nothing in reach, grip throws what you picked up, and B throws whatever you hold, pistol included (a fresh one twirls into your hand); a thrown gun stuns.
 - Shoot a fryer and burning oil blocks the lane in front of it. Shoot the extinguisher for a white cloud.
 - Out of health means stunned, not dead: the world goes grey and you can't shoot. Grip near your chest to take the adrenaline shot, then stab it down into your thigh (H in the browser). One per chapter.
 - Checkpoints are taken at each door. Codes and cheats go in the box on the title screen, or on the keypad in VR. Try `BIGHEADS`, `SLOWSLOW` or `ONEHITKO`.

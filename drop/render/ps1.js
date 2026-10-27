@@ -180,9 +180,10 @@ export function createPs1Frame(renderer) {
     rt,
     render(scene, camera) {
       if (renderer.xr.isPresenting) {
-        const layer = renderer.xr.getSession()?.renderState?.baseLayer;
-        const fh = layer ? layer.framebufferHeight : 1800, fw = layer ? layer.framebufferWidth / 2 : 1700;
-        U.uRes.value.set(Math.round(LINES * fw / fh), LINES); U.uPix.value = Math.max(1, fh / LINES);
+        // the eye's viewport from the last XR frame (Quest uses projection layers, so there's no baseLayer to ask)
+        const vp = renderer.xr.getCamera().cameras[0]?.viewport;
+        const fh = vp && vp.w ? vp.w : 1800, fw = vp && vp.z ? vp.z : 1700;
+        U.uRes.value.set(Math.round(LINES * fw / fh), LINES); U.uPix.value = Math.max(1, Math.round(fh / LINES));
         renderer.render(scene, camera);
         return;
       }

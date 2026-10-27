@@ -62,7 +62,7 @@ vrBtn.addEventListener('click', async () => {
     const s = await enterVR(renderer);
     mode = 'vr'; $('overlay').hidden = true; hud.show('vr'); G.arms.desk.root.visible = false;
     setTimeout(toTitle, 300);
-    s.addEventListener('end', () => { mode = 'menu'; G.state = 'menu'; title.keypad.group.visible = false; $('overlay').hidden = false; hud.show('menu'); G.chapter.load('counter'); player.placeAt(0, 3.6, 0); });
+    s.addEventListener('end', () => { camera.position.set(0, 1.6, 0); camera.rotation.set(0, 0, 0); Object.assign(G.chapter, { inTransit: false, fadeDir: 0, fading: 0, pending: null }); mode = 'menu'; G.state = 'menu'; title.keypad.group.visible = false; $('overlay').hidden = false; hud.show('menu'); G.chapter.load('counter'); player.placeAt(0, 3.6, 0); });
   } catch (err) { $('vrNote').textContent = 'Could not start VR: ' + (err && err.message || err); }
 });
 $('deskBtn').addEventListener('click', () => {
@@ -103,7 +103,6 @@ function frameFn(realDt, time) {
   if (G.state === 'title') {
     controllers.forEach((c, i) => { const g = c.userData.gun; if (g) g.muzzle.getWorldPosition(tips[i].pos); });
     title.keypad.poke(tips, realDt);
-    if (G.chapter.space) G.chapter.space.update(realDt);
   }
   if (mode !== 'menu' && !paused && G.state !== 'title') G.update(dt, realDt, time);
   else if (G.chapter.space) G.chapter.space.update(realDt);

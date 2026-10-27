@@ -21,6 +21,7 @@ export function createArms({ scene, camera, rig, renderer, fx, enemies, world, p
   WEAPONS.cleaver = { name: 'CLEAVER', auto: false, cool: .3, pellets: 0, spread: 0, ammo: 1, kick: 0, force: 1, buzz: [.5, 40], muz: -.2 };
   WEAPONS.extinguisher = { name: 'EXTINGUISHER', auto: true, cool: 0, pellets: 0, spread: 0, ammo: EXT_SECONDS, kick: 0, force: 1, buzz: [.2, 20], muz: -.3 };
   const A = { kit, WEAPONS, muzzleNow: new THREE.Vector3(), thrown: [], flying: [] };
+  let lastYaw = 0; const lastRig = new THREE.Vector3();
   const tO = new THREE.Vector3(), tD = new THREE.Vector3(), tQ = new THREE.Quaternion(), vA = new THREE.Vector3();
 
   function extras(g) {
@@ -40,7 +41,7 @@ export function createArms({ scene, camera, rig, renderer, fx, enemies, world, p
   A.hold = (g, kind) => {
     kit.setWeapon(g, kind === 'mg' ? 'mg' : 'pistol');
     const special = kind === 'cleaver' || kind === 'extinguisher';
-    if (special) { g.pistolParts.forEach(m => { m.visible = false; }); g.weapon = kind; g.wAmmo = WEAPONS[kind].ammo; }
+    if (special) { g.pistolParts.forEach(m => { m.visible = false; }); g.weapon = kind; g.wAmmo = WEAPONS[kind].ammo; g.extT = WEAPONS[kind].ammo; }
     g.cleaverG.visible = kind === 'cleaver'; g.extG.visible = kind === 'extinguisher';
     g.laser.visible = kind === 'pistol' || kind === 'mg';
     A.sync();
@@ -167,7 +168,7 @@ export function createArms({ scene, camera, rig, renderer, fx, enemies, world, p
     for (const f of G.gripHandlers) if (f(g, pos, hand)) return;
     const pk = G.pickups.near(pos, reach);
     if (pk) { A.hold(g, pk.kind); G.pickups.remove(pk); sfxRack(); buzz(hand, .7, 80); fx.popupFront(WEAPONS[pk.kind].name, pk.kind === 'mg' ? '50 ROUNDS' : 'TRIGGER TO THROW', '#ebe8e1', 1, 1.1); return; }
-    A.throw(g, hand, vel);
+    if (G.canShoot() && g.weapon !== 'pistol') A.throw(g, hand, vel); // a bare grip never throws your pistol: B does
   };
 
   /* ---------- controllers ---------- */
@@ -181,15 +182,20 @@ export function createArms({ scene, camera, rig, renderer, fx, enemies, world, p
 
   /** Every frame. */
   A.update = (dt, realDt) => {
-    for (const g of A.all) kit.animateGun(g, realDt);
+    for (const g of A.all) { kit.animateGun(g, realDt); if (g.weapon === 'cleaver' || g.weapon === 'extinguisher') g.laser.visible = false; }
+    const rigMoved = Math.abs(rig.rotation.y - lastYaw) > 1e-4 || rig.position.distanceTo(lastRig) > .4;
+    lastYaw = rig.rotation.y; lastRig.copy(rig.position);
     if (renderer.xr.isPresenting) {
       for (const c of controllers) {
         const g = c.userData.gun; if (!g) continue;
-        c.getWorldPosition(vA); c.userData.vel = c.userData.vel || new THREE.Vector3();
-        if (c.userData.prevP && realDt > 0) c.userData.vel.copy(vA).sub(c.userData.prevP).divideScalar(realDt);
+        vA.copy(c.position); c.userData.vel = c.userData.vel || new THREE.Vector3();
+        if (c.userData.prevP && realDt > 0) c.userData.vel.copy(vA).sub(c.userData.prevP).divideScalar(realDt).applyQuaternion(rig.quaternion);
         c.userData.prevP = (c.userData.prevP || new THREE.Vector3()).copy(vA);
+        if (rigMoved) g.prevTip = null; // a snap turn or a teleport isn't a swing
         if (G.state !== 'playing') continue;
-        tD.set(0, 0, -1).applyQuaternion(c.getWorldQuaternion(tQ)); if (tD.y < -.8) A.reload(g, c.userData.hand);
+        tD.set(0, 0, -1).applyQuaternion(c.getWorldQuaternion(tQ));
+        g.downT = tD.y < -.8 && !g.held ? (g.downT || 0) + realDt : 0;
+        if (tD.y < -.8 && (g.ammo <= 0 || g.downT > .25)) A.reload(g, c.userData.hand);
         const sw = G.canShoot() && melee.swing(g, rig, realDt, true); if (sw) strike(g, sw.hit, sw.dir, sw.speed, c.userData.hand);
         if (g.held && WEAPONS[g.weapon].auto && g.cool <= 0 && g.weapon === 'mg') { aimOf(c); A.fire(g, tO.clone(), tD.clone(), c.userData.hand); }
         if (g.held && g.weapon === 'extinguisher') { aimOf(c); spray(g, tO, tD, dt); }
@@ -203,7 +209,7 @@ export function createArms({ scene, camera, rig, renderer, fx, enemies, world, p
   };
   function spray(g, from, dir, dt) {
     if (g.wAmmo <= 0) { A.hold(g, 'pistol'); return; }
-    g.wAmmo = Math.max(0, g.wAmmo - dt);
+    g.extT = Math.max(0, (g.extT ?? WEAPONS.extinguisher.ammo) - dt); g.wAmmo = Math.ceil(g.extT);
     G.hazards.spray(from, dir, dt);
     if (Math.random() < dt * 8) A.sync();
   }

@@ -7,7 +7,7 @@ import { controllers, buzz } from '../../engine/index.js';
 import { stunEvent, initialStun, canShoot, stunProgress } from '../stun.js';
 import { sfxHurt, sfxReload } from '../../audio/index.js';
 
-const STAB_DROP = .45, STAB_SPEED = 1.4; // m below the chest the hand must come down to, m/s it must be moving
+const STAB_DROP = .3, STAB_SPEED = 1.2; // m the hand must come down from where it took the shot, m/s it must have been moving
 
 /** @param {{ player: any, arms: any, G: any }} o */
 export function createStunned({ player, arms, G }) {
@@ -29,7 +29,7 @@ export function createStunned({ player, arms, G }) {
   S.shots = () => S.state.players.p1.shots;
   S.canShoot = () => canShoot(S.state, 'p1');
   S.progress = t => stunProgress(S.state, 'p1', t);
-  S.chapterStart = () => { S.state = initialStun(['p1']); apply(stunEvent(S.state, { type: 'chapterStarted' })); player.greyTarget = 0; player.slow = 1; };
+  S.chapterStart = () => { S.dropSyringe(); S.state = initialStun(['p1']); apply(stunEvent(S.state, { type: 'chapterStarted' })); player.greyTarget = 0; player.slow = 1; };
   S.checkpointReached = () => apply(stunEvent(S.state, { type: 'checkpointReached' }));
   S.restore = st => { S.state = stunEvent(st, { type: 'checkpointRestored' }).state; player.greyTarget = 0; player.grey = 0; player.slow = 1; S.dropSyringe(); apply({ state: S.state, out: [] }); };
   /** Health ran out. */
@@ -56,8 +56,9 @@ export function createStunned({ player, arms, G }) {
       const c = controllers.find(x => x.userData.gun === S.held);
       if (c) {
         c.getWorldPosition(hand);
-        const vel = c.userData.vel;
-        if (hand.y < player.headPos.y - .4 - STAB_DROP && vel && vel.y < -STAB_SPEED) { S.dropSyringe(); S.adrenaline(t); }
+        const vel = c.userData.vel; // the fastest it has moved down lately, so slowing at the bottom still counts
+        S.peak = Math.max((S.peak || 0) * .85, vel ? -vel.y : 0);
+        if (hand.y < S.from - STAB_DROP && S.peak > STAB_SPEED) { S.dropSyringe(); S.peak = 0; S.adrenaline(t); }
       }
     }
   };
