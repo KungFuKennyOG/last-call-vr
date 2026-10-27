@@ -11,6 +11,7 @@ A gory wave shooter for Meta Quest 3, set in a brutalist concrete techno club, b
 | Trigger | Fire (one pistol per hand) |
 | Left stick | Move where you're looking (edges darken while moving) |
 | Right stick | Snap turn 30° |
+| Swing a gun hard | Pistol-whip (finishes downed enemies, launches bodies) |
 | Point a gun at the floor | Twirl reload |
 | Lean or step | Dodge red tracers (near misses trigger slow-mo) |
 | Shoot a tracer | Deflect it |
@@ -18,7 +19,9 @@ A gory wave shooter for Meta Quest 3, set in a brutalist concrete techno club, b
 
 Pillars block bullets both ways. Enemies come through doors on both floors, path up and down the stairs to reach you, and shoot between floors when they can see you.
 
-Browser mode (no headset): `WASD` to move, click to lock aim, mouse to look, click to shoot, `R` to reload.
+Non-head kills can leave enemies downed: they crawl, groan and bleed out over 9-16 seconds unless you finish them. Shooters pistol-whip you if you get within arm's reach.
+
+Browser mode (no headset): `WASD` to move, click to lock aim, mouse to look, click to shoot, `F` or right-click to melee, `R` to reload.
 
 ## Install on the Quest
 

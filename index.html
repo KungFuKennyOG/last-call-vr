@@ -76,6 +76,8 @@ dl.how dd{margin:0;min-width:0;color:var(--muted)}
       <dt>Left stick</dt><dd>Move where you look. Right stick snap-turns.</dd>
       <dt>Pillars</dt><dd>Stop bullets both ways. Use them.</dd>
       <dt>Stairs</dt><dd>Two runs along the side walls lead up to the balcony. They use them too, and they shoot down from up there.</dd>
+      <dt>Melee</dt><dd>Swing a gun hard to pistol-whip whatever it hits. In the browser, press F or right-click.</dd>
+      <dt>Downed</dt><dd>Gut and leg shots can drop them alive. They crawl, groan and bleed out, unless you finish them.</dd>
       <dt>Reload</dt><dd>Point a gun at the floor. It spins and reloads.</dd>
       <dt>Red tracers</dt><dd>Dodge for slow-mo, or shoot them out of the air.</dd>
       <dt>Wrist</dt><dd>Wave, score and streak live on your left gun.</dd>
@@ -90,7 +92,7 @@ dl.how dd{margin:0;min-width:0;color:var(--muted)}
   <div><small>HP</small><span class="v" id="hHp">■■■■■</span></div>
   <div><small>AMMO</small><span class="v" id="hAmmo">12</span></div>
 </div>
-<div id="keys" hidden>WASD MOVE · MOUSE AIM · CLICK FIRE · R RELOAD · ESC PAUSE</div>
+<div id="keys" hidden>WASD MOVE · MOUSE AIM · CLICK FIRE · F MELEE · R RELOAD · ESC PAUSE</div>
 <div id="cross" hidden></div>
 <div id="pause" hidden><button id="resumeBtn" type="button">Paused · Resume</button></div>
 
@@ -348,6 +350,17 @@ function sfxDoor(){ if(!actx) return; const t=now(); const o=osc('sine',55,t,.6)
   o.connect(g).connect(sfxBus); n.connect(f).connect(g2).connect(sfxBus); }
 function sfxWhoosh(){ if(!actx) return; const t=now(); const n=noise(t,.7), f=filt('bandpass',300,1.5); f.frequency.exponentialRampToValueAtTime(2600,t+.6); const g=gain(); env(g,t,.05,.35,.55); n.connect(f).connect(g).connect(sfxBus); }
 function sfxStreak(){ if(!actx) return; const t=now(); [196,261.63].forEach((f,k)=>{ const tt=t+k*.07, o=osc('square',f,tt,.12), g=gain(); env(g,tt,.002,.07,.1); o.connect(g).connect(sfxBus); }); }
+function sfxWhack(){ if(!actx) return; const t=now();
+  const o=osc('sine',110,t,.2); o.frequency.exponentialRampToValueAtTime(40,t+.15); const g=gain(); env(g,t,.001,1,.16); o.connect(g).connect(sfxBus);
+  const n=noise(t,.08), f=filt('bandpass',1700,1.5), g2=gain(); env(g2,t,.001,.8,.06); n.connect(f).connect(g2).connect(sfxBus);
+  const n2=noise(t+.01,.05), f2=filt('highpass',3500), g3=gain(); env(g3,t+.01,.001,.35,.04); n2.connect(f2).connect(g3).connect(sfxBus); }
+// a groan: a buzzy voice through two vowel formants, with a wobble, quieter with distance
+function sfxMoan(dist,pitch){ if(!actx) return; const t=now(), dur=.7+Math.random()*.7, v=.32/(1+dist*.35);
+  const o=osc('sawtooth',pitch,t,dur); o.frequency.linearRampToValueAtTime(pitch*(.78+Math.random()*.12),t+dur);
+  const lfo=osc('sine',5+Math.random()*3,t,dur), lg=gain(); lg.gain.value=pitch*.04; lfo.connect(lg).connect(o.frequency);
+  const g=gain(); g.gain.setValueAtTime(.0001,t); g.gain.exponentialRampToValueAtTime(v,t+.18); g.gain.setValueAtTime(v,t+dur*.6); g.gain.exponentialRampToValueAtTime(.0001,t+dur);
+  [[650,6],[1050,8],[2400,10]].forEach(([fq,q],k)=>{ const b=filt('bandpass',fq*(.9+Math.random()*.2),q), bg=gain(); bg.gain.value=k===2?.3:1; o.connect(b).connect(bg).connect(g); });
+  g.connect(sfxBus); }
 function setMuffle(on){ if(!actx) return; lowpass.frequency.setTargetAtTime(on?650:18000, actx.currentTime, .08); }
 
 /* ---------- haptics ---------- */
@@ -500,7 +513,7 @@ function makeGun(accent,wrist){
   let wristScreen=null;
   if(wrist){ wristScreen=new T.Mesh(new T.PlaneGeometry(.12,.06),new T.MeshBasicMaterial({map:wristTex,transparent:true,fog:false}));
     wristScreen.position.set(0,.085,.06); wristScreen.rotation.x=-.55; body.add(wristScreen); }
-  return {root,body,muzzle,flash,laser,ammoPips,hpPips,ammo:MAG,kick:0,cool:0,spin:0,flashT:0,emptyT:0};
+  return {root,body,muzzle,flash,laser,ammoPips,hpPips,ammo:MAG,kick:0,cool:0,spin:0,flashT:0,emptyT:0,meleeCd:0,whip:0,prevTip:null};
 }
 const wristCv=document.createElement('canvas'); wristCv.width=384; wristCv.height=192; const wctx=wristCv.getContext('2d');
 const wristTex=new T.CanvasTexture(wristCv);
@@ -536,7 +549,8 @@ const enemyGunGeo=boxGeo(.045,.17,.07);
 const HAIRS=[0x15100c,0x2a1c12,0x0c0c0c,0x5a4632,0x8a8a88];
 // faces: drawn eyes, brows and mouth on a transparent plane over the head's front, swapped per expression
 const FACE_SET={ neutral:['open','flat','smirk'], neutral_blink:['closed','flat','smirk'], angry:['angry','angry','grimace'], angry_blink:['closed','angry','grimace'],
-  pain:['squint','worried','open'], scared:['wide','raised','O'], scream:['wide','angry','scream'], dead:['rolled','flat','slack'] };
+  pain:['squint','worried','open'], scared:['wide','raised','O'], scream:['wide','angry','scream'], dead:['rolled','flat','slack'],
+  agony:['squint','worried','scream'], plead:['wide','worried','open'] };
 function drawFace([eyes,brows,mouth]){
   const S=128, cv=document.createElement('canvas'); cv.width=cv.height=S; const g=cv.getContext('2d');
   g.lineCap='round'; g.lineJoin='round';
@@ -619,7 +633,7 @@ function spawnEnemy(kind,dummy){
     mark(armR,0,0,0), mark(armR,0,-.3,0), mark(armR,0,-.62,0),
     mark(legL,0,0,0), mark(legL,0,-.42,0), mark(legL,0,-.84,0),
     mark(legR,0,0,0), mark(legR,0,-.42,0), mark(legR,0,-.84,0) ];
-  Object.assign(e,{legL,legR,torso,armL,armR,head,muzzle,glint});
+  Object.assign(e,{inner,legL,legR,torso,armL,armR,head,muzzle,glint,downed:false,stunT:0});
   scene.add(g); hittables.push(...e.hits); enemies.push(e); return e;
 }
 function removeEnemy(e){
@@ -644,9 +658,11 @@ function navGoal(p,feet){
 function setExpr(e,ex){ if(ex!==e.expr){ e.expr=ex; e.face.material=faceMats[ex]; } }
 function updateEnemy(e,dt){
   e.age+=dt;
+  if(e.downed){ updateDowned(e,dt); return; }
   const p=e.group.position, ox=p.x, oz=p.z, feet=rig.position.y, s=e.def.scale;
   const dx=headPos.x-p.x, dz=headPos.z-p.z, dist=Math.max(.01,Math.hypot(dx,dz));
-  const active=!e.dummy && state==='playing';
+  e.stunT=Math.max(0,e.stunT-dt);
+  const active=!e.dummy && state==='playing' && e.stunT<=0;
   // same floor, or both on the same stair run: chase directly. Otherwise path through the nearest stairs.
   const pr=rampIdx(headPos.x,headPos.z), er=rampIdx(p.x,p.z);
   const direct=Math.abs(p.y-feet)<.6 || (pr && pr===er);
@@ -659,7 +675,11 @@ function updateEnemy(e,dt){
   if(active){
     if(e.kind==='rusher'){
       if(!(direct && d3<1.05)){ const sp=e.def.speed*(1+wave*.04); mx=gx/gd*sp*dt; mz=gz/gd*sp*dt; moving=true; }
-      else { e.attackT-=dt; if(e.attackT<=0){ e.attackT=1.1; e.swing=1; sfxSwing(); setTimeout(()=>{ if(e.alive && state==='playing' && Math.hypot(headPos.x-e.group.position.x,headPos.z-e.group.position.z)<1.15 && Math.abs(rig.position.y-e.group.position.y)<.7) hurtPlayer(); },180); } }
+      else { e.attackT-=dt; if(e.attackT<=0){ e.attackT=1.1; e.swing=1; sfxSwing(); setTimeout(()=>{ if(e.alive && !e.downed && state==='playing' && Math.hypot(headPos.x-e.group.position.x,headPos.z-e.group.position.z)<1.15 && Math.abs(rig.position.y-e.group.position.y)<.7) hurtPlayer(); },180); } }
+    } else if(direct && d3<1.2){
+      // too close to shoot: pistol-whip the player
+      e.aiming=false; e.attackT-=dt;
+      if(e.attackT<=0){ e.attackT=1.3; e.swing=1; sfxSwing(); setTimeout(()=>{ if(e.alive && !e.downed && state==='playing' && Math.hypot(headPos.x-e.group.position.x,headPos.z-e.group.position.z)<1.3 && Math.abs(rig.position.y-e.group.position.y)<.7) hurtPlayer(); },200); }
     } else {
       const inPos=e.los && d3<=e.stop+(direct?0:5);
       if(!inPos){ const sp=e.def.speed; mx=gx/gd*sp*dt; mz=gz/gd*sp*dt; moving=true;
@@ -689,20 +709,67 @@ function updateEnemy(e,dt){
   } else {
     e.legL.rotation.x*=.85; e.legR.rotation.x*=.85; e.torso.position.y=.86;
     e.armL.rotation.x=e.kind==='rusher'?-1.1-e.swing*.9:-.15;
-    e.armR.rotation.x=e.kind==='rusher'?-1.1-e.swing*1.2:-.1-e.aim*1.45;
+    e.armR.rotation.x=e.kind==='rusher'?-1.1-e.swing*1.2:-.1-e.aim*1.45-e.swing*1.6;
   }
   e.torso.rotation.x=-e.flinch*.5;
   if(e.glint){ e.glint.visible=e.aiming; if(e.aiming) e.glint.scale.setScalar(.2+Math.abs(Math.sin(tAll*30))*.25); }
   // expression
   e.scaredT-=dt; e.blinkT-=dt; if(e.blinkT<=-.12) e.blinkT=2+Math.random()*3.5;
   let ex;
-  if(e.flinch>.25) ex='pain';
+  if(e.flinch>.25||e.stunT>0) ex='pain';
   else if(e.scaredT>0) ex='scared';
   else if(e.kind==='rusher' && moving && active) ex='scream';
   else if(active && (e.aiming||e.los)) ex='angry';
   else ex='neutral';
   if((ex==='neutral'||ex==='angry') && e.blinkT<0) ex+='_blink';
   setExpr(e,ex);
+}
+
+/* ---------- downed: crawling, bleeding out ---------- */
+function downEnemy(e,point,dir){
+  e.downed=true; e.downT=0; e.bleed=9+Math.random()*7; e.aiming=false; if(e.glint) e.glint.visible=false;
+  e.crawlAway=Math.random()<.5; e.moanT=.4; e.trailT=.2; e.writheT=0; e.hp=1;
+  e.pitch=(e.kind==='heavy'?80:105)+Math.random()*30;
+  spray(point,dir,16,3.5,.5); mist(point,.5); sfxThud();
+}
+function updateDowned(e,dt){
+  e.downT+=dt; e.bleed-=dt;
+  const p=e.group.position, dx=headPos.x-p.x, dz=headPos.z-p.z, dist=Math.max(.01,Math.hypot(dx,dz));
+  // turn toward the player, or away if this one is trying to get away
+  let want=Math.atan2(dx,dz)+(e.crawlAway?Math.PI:0), cur=e.group.rotation.y;
+  let da=((want-cur+Math.PI*3)%(Math.PI*2))-Math.PI; e.group.rotation.y=cur+da*Math.min(1,dt*1.2);
+  // collapse: drop to the knees, then fall forward onto the belly
+  const k=Math.min(1,e.downT/.8), fall=k*k*(3-2*k);
+  e.inner.rotation.x=fall*Math.PI/2*.94; e.inner.position.y=fall*.17;
+  const life=Math.max(0,Math.min(1,e.bleed/6)), tt=tAll*(1.5+life*2);
+  e.torso.rotation.z=Math.sin(tt*1.3)*.12*life+(Math.random()<.02?(Math.random()-.5)*.3:0);
+  e.torso.position.y=.86;
+  e.legL.rotation.x=Math.sin(tt)*.25*life; e.legR.rotation.x=-Math.sin(tt)*.25*life;
+  // crawl: arms reaching forward in turn, dragging the body
+  if(e.downT>.9){
+    e.armL.rotation.x=-2.5-Math.sin(tt*1.6)*.55*life; e.armR.rotation.x=-2.5+Math.sin(tt*1.6)*.55*life;
+    e.head.rotation.x=-1.75+Math.sin(tt*.7)*.15;
+    const sp=(e.crawlAway?.28:.2)*life*(.6+.4*Math.max(0,Math.sin(tt*1.6)));
+    if(state==='playing'||state==='between'){ const fx=Math.sin(e.group.rotation.y), fz=Math.cos(e.group.rotation.y); moveEntity(p,fx*sp*dt,fz*sp*dt,.4,p.y); }
+  } else { e.armL.rotation.x=-1.2*fall; e.armR.rotation.x=-1.2*fall; }
+  const gy=groundAt(p.x,p.z,p.y); p.y+=(gy-p.y)*Math.min(1,dt*10);
+  e.vel.set(0,0,0);
+  // blood trail and a slow drip
+  e.trailT-=dt;
+  if(e.trailT<=0){ e.trailT=.5+Math.random()*.4; e.torso.getWorldPosition(vA); vA.y=p.y; decal(vA,UP,.22+Math.random()*.22,1.5,'pool'); }
+  if(Math.random()<dt*3){ e.torso.getWorldPosition(vA); spray(vA,UP,1,.6,.8); }
+  // groans: frequent at first, weaker as they fade
+  e.moanT-=dt;
+  if(e.moanT<=0){ e.moanT=(1.4+Math.random()*2)*(1.6-life*.6); sfxMoan(Math.hypot(dist,headPos.y-p.y),e.pitch*(.85+life*.15)); }
+  setExpr(e, dist<2.6&&!e.crawlAway&&Math.sin(tAll*.9+e.pitch)>0?'plead':(Math.sin(tAll*1.7+e.pitch)>-.3?'agony':'pain'));
+  if(e.bleed<=0){ e.torso.getWorldPosition(vA); finishDowned(e,vA.clone(),new T.Vector3(0,-1,0),'body','',.4,true); }
+}
+function finishDowned(e,point,dir,partName,side,force,bledOut){
+  if(!bledOut){ const pts=50*mult(); score+=pts; hudDirty=true; popup(point.clone().add(new T.Vector3(0,.3,0)),'FINISHED','+'+pts,'#e9e7e2',.9,1); }
+  removeEnemy(e);
+  makeRagdoll(e,point,dir,partName,side,force);
+  if(!bledOut) sfxThud();
+  checkWaveClear();
 }
 
 /* ---------- ragdolls (verlet) ---------- */
@@ -882,6 +949,43 @@ function fireGun(gun,origin,dir,hand){
   syncPips(); hudDirty=true;
 }
 
+/* ---------- melee: pistol-whip ---------- */
+const MELEE_SPEED=2.4, PART_R={head:.2,body:.34,arm:.16,leg:.19};
+const tipNow=new T.Vector3(), swingV=new T.Vector3(), partPos=new T.Vector3();
+function meleeTargets(tip,reach){
+  let best=null, bd=1e9;
+  enemies.forEach(e=>{ if(!e.alive||e.dummy) return; if(e.group.position.distanceTo(tip)>3) return;
+    e.hits.forEach(m=>{ m.getWorldPosition(partPos); const d=partPos.distanceTo(tip)-PART_R[m.userData.part]; if(d<reach&&d<bd){ bd=d; best={e,m,point:partPos.clone()}; } }); });
+  ragdolls.forEach(r=>{ [r.torso,...r.segs.map(s=>s.m)].forEach(m=>{ m.getWorldPosition(partPos); const d=partPos.distanceTo(tip)-PART_R[m.userData.part]; if(d<reach&&d<bd){ bd=d; best={r,m,point:partPos.clone()}; } }); });
+  return best;
+}
+function meleeStrike(gun,hit,dir,speed,hand){
+  gun.meleeCd=.35; buzz(hand,1,90); sfxWhack();
+  const ud=hit.m.userData, point=hit.point;
+  spray(point,dir,12,3,.6); mist(point,.45); sparkBurst(point,3);
+  if(hit.r){ impulse(hit.r,point,dir,speed*1.4); if(ud.part==='head'&&hit.r.headOn&&speed>4) sever(hit.r,'head',dir); return; }
+  const e=hit.e;
+  if(e.downed){ finishDowned(e,point,dir,ud.part,ud.side,Math.min(9,speed*1.8),false); return; }
+  e.hp-=ud.part==='head'?2:1;
+  if(e.hp<=0){ killEnemy(e,point,dir,ud.part,ud.side,Math.min(9,speed*1.8)); return; }
+  e.flinch=1.3; e.stunT=.9; e.aiming=false;
+  moveEntity(e.group.position,dir.x*.45,dir.z*.45,.35,e.group.position.y);
+  score+=25*mult(); hudDirty=true;
+  popup(point.clone().add(new T.Vector3(0,.25,0)),'PISTOL WHIP','+'+25*mult(),'#e9e7e2',.8,.9);
+}
+function deskMelee(){
+  if(!(state==='playing'||state==='between')||deskGun.meleeCd>0||deskGun.spin>0) return;
+  deskGun.whip=1; deskGun.meleeCd=.45; sfxSwing();
+  camera.getWorldPosition(tO); camera.getWorldDirection(tD);
+  let best=null, bs=-1;
+  const cand=[];
+  enemies.forEach(e=>{ if(e.alive&&!e.dummy) e.hits.forEach(m=>cand.push({e,m})); });
+  ragdolls.forEach(r=>[r.torso,...r.segs.map(s=>s.m)].forEach(m=>cand.push({r,m})));
+  cand.forEach(c=>{ c.m.getWorldPosition(partPos); const v=partPos.clone().sub(tO), d=v.length(); if(d>1.9) return; const dot=v.normalize().dot(tD); if(dot<.8) return;
+    const sc=dot-d*.15; if(sc>bs){ bs=sc; best={...c,point:partPos.clone()}; } });
+  if(best) setTimeout(()=>{ if(best.e&&!best.e.alive&&!best.e.downed) return; meleeStrike(deskGun,best,tD.clone(),5.5,'right'); },90);
+}
+
 function wound(point,dir,big){
   spray(point,dir,big?22:12,big?4.5:3.2,.45);
   spray(point,vA.copy(dir).negate(),big?8:4,1.6,.7);
@@ -889,6 +993,7 @@ function wound(point,dir,big){
 }
 function hitEnemy(e,partName,side,point,dir){
   if(e.dummy) return;
+  if(e.downed){ wound(point,dir,partName==='head'); finishDowned(e,point,dir,partName,side,partName==='head'?5:4.5,false); return; }
   const head=partName==='head';
   e.hp-=head?99:1;
   wound(point,dir,head);
@@ -897,14 +1002,18 @@ function hitEnemy(e,partName,side,point,dir){
   score+=10*mult(); hudDirty=true;
 }
 const STREAK_NAMES={2:'DOUBLE',3:'TRIPLE',5:'RAMPAGE',8:'MASSACRE',12:'BLOODBATH'};
-function killEnemy(e,point,dir,partName,side){
-  const head=partName==='head';
+function killEnemy(e,point,dir,partName,side,meleeForce){
+  const head=partName==='head', melee=meleeForce!==undefined;
   streak=streakT>0?streak+1:1; streakT=3;
-  const pts=Math.round(e.def.score*(head?1.5:1)*mult()/10)*10; score+=pts; kills++; hudDirty=true;
-  popup(point.clone().add(new T.Vector3(0,.25,0)), head?'HEADSHOT':'+'+pts, head?'+'+pts:'', head?'#e9e7e2':'#bdbab3', 1, 1.1);
+  const pts=Math.round(e.def.score*(head?1.5:1)*(melee?1.5:1)*mult()/10)*10; score+=pts; kills++; hudDirty=true;
+  // a non-head shot can leave them alive on the floor
+  const drop=!melee && !head && (partName==='leg'?Math.random()<.6:partName==='body'?Math.random()<.35:partName==='arm'?Math.random()<.2:false);
+  const label=melee?'PISTOL WHIP':head?'HEADSHOT':drop?'DOWN':'';
+  popup(point.clone().add(new T.Vector3(0,.25,0)), label||'+'+pts, label?'+'+pts:'', label?'#e9e7e2':'#bdbab3', 1, 1.1);
   if(STREAK_NAMES[streak]){ popupFront(STREAK_NAMES[streak],'×'+mult(),'#e0162b',1.3,1.4); sfxStreak(); }
-  const force=head?5:(e.kind==='heavy'?4:6.5);
+  const force=melee?meleeForce:head?5:(e.kind==='heavy'?4:6.5);
   enemies.forEach(o=>{ if(o!==e && !o.dummy && o.kind!=='heavy' && o.group.position.distanceTo(e.group.position)<6) o.scaredT=1.4+Math.random()*.6; });
+  if(drop){ downEnemy(e,point,dir); return; }
   removeEnemy(e);
   makeRagdoll(e,point,dir,partName,side,force);
   sfxThud();
@@ -1046,6 +1155,7 @@ canvas.addEventListener('pointerdown',ev=>{
   if(mode!=='desktop'||paused) return;
   if(ev.pointerType==='touch'){ touch={x:ev.clientX,y:ev.clientY,moved:0}; return; }
   if(!locked) lock();
+  if(ev.button===2){ deskMelee(); return; }
   deskFire();
 });
 canvas.addEventListener('pointermove',ev=>{
@@ -1054,7 +1164,8 @@ canvas.addEventListener('pointermove',ev=>{
   yaw-=dx*.005; pitch-=dy*.005; pitch=Math.max(-1.3,Math.min(1.3,pitch));
 });
 canvas.addEventListener('pointerup',ev=>{ if(ev.pointerType==='touch'&&touch){ if(touch.moved<12) deskFire(); touch=null; } });
-document.addEventListener('keydown',ev=>{ keys[ev.code]=true; if(mode==='desktop'&&ev.code==='KeyR') reload(deskGun,'right'); });
+document.addEventListener('keydown',ev=>{ keys[ev.code]=true; if(mode==='desktop'&&ev.code==='KeyR') reload(deskGun,'right'); if(mode==='desktop'&&ev.code==='KeyF'&&!paused) deskMelee(); });
+canvas.addEventListener('contextmenu',ev=>{ ev.preventDefault(); });
 document.addEventListener('keyup',ev=>{ keys[ev.code]=false; });
 addEventListener('blur',()=>{ for(const k in keys) keys[k]=false; });
 function deskFire(){ camera.getWorldPosition(tO); camera.getWorldDirection(tD); fireGun(deskGun,tO,tD,'right'); }
@@ -1123,12 +1234,19 @@ function loop(){
   allGuns.forEach(g=>{
     g.cool-=realDt; g.emptyT-=realDt; g.kick=Math.max(0,g.kick-realDt*9);
     if(g.spin>0) g.spin=Math.max(0,g.spin-realDt*20);
-    g.body.rotation.x=g.kick*.45+g.spin; g.body.position.z=.06+g.kick*.03;
+    g.meleeCd-=realDt; g.whip=Math.max(0,g.whip-realDt*5);
+    g.body.rotation.x=g.kick*.45+g.spin-Math.sin(g.whip*Math.PI)*1.1; g.body.position.z=.06+g.kick*.03-Math.sin(g.whip*Math.PI)*.12; g.body.position.x=-Math.sin(g.whip*Math.PI)*.12;
     g.flashT-=realDt; g.flash.visible=g.flashT>0; if(g.flash.visible) g.flash.material.rotation=Math.random()*6;
     g.laser.visible=g.spin<=0;
   });
   if(renderer.xr.isPresenting){
-    controllers.forEach(c=>{ const g=c.userData.gun; if(!g) return; tD.set(0,0,-1).applyQuaternion(c.getWorldQuaternion(tQ)); if(tD.y<-.8) reload(g,c.userData.hand); });
+    controllers.forEach(c=>{ const g=c.userData.gun; if(!g) return; tD.set(0,0,-1).applyQuaternion(c.getWorldQuaternion(tQ)); if(tD.y<-.8) reload(g,c.userData.hand);
+      // swing detection: the gun's tip speed (rig movement removed) above a threshold whips whatever it touches
+      g.muzzle.getWorldPosition(tipNow); tipNow.sub(rig.position);
+      if(g.prevTip && realDt>0){ swingV.copy(tipNow).sub(g.prevTip).divideScalar(realDt); const sp=swingV.length();
+        if(sp>MELEE_SPEED && g.meleeCd<=0 && (state==='playing'||state==='between')){ tipNow.add(rig.position); const hit=meleeTargets(tipNow,.1); tipNow.sub(rig.position);
+          if(hit) meleeStrike(g,hit,swingV.clone().normalize(),sp,c.userData.hand); } }
+      g.prevTip=(g.prevTip||new T.Vector3()).copy(tipNow); });
   } else if(mode==='desktop' && deskGun.ammo<=0 && deskGun.cool<-.5) reload(deskGun,'right');
 
   if(!paused){
