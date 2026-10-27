@@ -44,6 +44,15 @@ npm run check:all                  # both
 
 CI (`.github/workflows/check.yml`) runs `check` and `smoke` on every push and uploads the screenshots.
 
+## Tracking work
+
+Every plan task is a GitHub issue titled with its task number (for example `2.4 Stunned state and the adrenaline self-revive`), in a milestone per phase, with its "done when" as a checklist. More than one chat works on this repo at once, so:
+- **Before starting**, find the task's issue (`gh issue list --milestone "Phase 2: Chapter 1 solo slice"`) and check it isn't labeled `in progress`. If it's free, add `in progress` and comment what you're doing.
+- **While working**, tick the issue's checklist as parts land. Partial work (logic done, visuals not) stays open with the checklist showing what's left.
+- **When done**, open the PR with `Closes #<issue>` in the body so merging closes it. If it needs a check on the Quest, label it `needs headset check` and keep it open until Kenny confirms.
+- Don't take an issue another chat has labeled `in progress`. Phase 1 belongs to a separate chat right now.
+- `gh` works through the REST API here (GraphQL is blocked): use `gh api repos/KungFuKennyOG/last-call-vr/issues/...`.
+
 ## Rules
 
 **Code**
