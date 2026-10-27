@@ -1695,7 +1695,13 @@ function aimedAt(pt){ for(const r of aimRays){ vC.copy(pt).sub(r.o); const t=vC.
 function slowmo(scale,dur){ slowScale=Math.min(slowT>0?slowScale:1,scale); slowT=Math.max(slowT,dur); setMuffle(true); }
 const ray=new T.Raycaster(); ray.far=70;
 
-let forceMul=1, ricoThisShot=false;
+let forceMul=1, ricoThisShot=false, blastRags=null;
+const blastO=new T.Vector3();
+// a sawed-off blast throws the whole body: up and back along the shot, harder the closer they were
+function launchRag(r,dir,k){ const d=blastO.distanceTo(r.pts[2].c), hs=Math.max(1.2,Math.min(7,8.4-d*.8))*k, vs=hs*.5, l=Math.hypot(dir.x,dir.z)||1, ux=dir.x/l, uz=dir.z/l;
+  r.asleep=false; r.still=0; if(typeof unbakeRag==='function') unbakeRag(r);
+  r.pts.forEach(p=>{ const j=.85+Math.random()*.3; p.o.x-=ux*hs*j*SIM_H; p.o.z-=uz*hs*j*SIM_H; p.o.y-=vs*j*SIM_H; });
+  return d; }
 const spreadV=new T.Vector3();
 function fireGun(gun,origin,dir,hand){
   if(state==='ready'){ startGame(); return; }
@@ -1709,12 +1715,14 @@ function fireGun(gun,origin,dir,hand){
   gun.cool=W.cool*(frenzyT>0?.5:1); gun.kick=W.kick; gun.flashT=gun.weapon==='shotgun'?.08:frenzyT>0?.07:.05;
   (gun.weapon==='mg'?sfxMG:gun.weapon==='shotgun'?sfxShotgun:sfxShot)(); buzz(hand,W.buzz[0],W.buzz[1]);
   gun.muzzle.getWorldPosition(vB); muzzleLight.position.copy(vB); muzzleLightV=gun.weapon==='shotgun'?4:2.6;
-  forceMul=W.force; ricoThisShot=false;
+  forceMul=W.force; ricoThisShot=false; blastRags=gun.weapon==='shotgun'?new Map():null; blastO.copy(origin);
   for(let k=0;k<W.pellets;k++){
     const d=dir.clone(); if(W.spread){ spreadV.randomDirection().multiplyScalar(Math.random()*W.spread); d.add(spreadV).normalize(); }
     firePellet(origin,d);
   }
   forceMul=1;
+  if(blastRags){ let close=false; blastRags.forEach((k,r)=>{ if(launchRag(r,dir,k)<2.6&&k===1) close=true; }); blastRags=null;
+    if(close){ buzz(hand,1,120); if(headshotSlowCd<=0){ slowmo(.45,.3); headshotSlowCd=1.5; } } }
   if(gun.weapon==='shotgun'){ gun.barrel=(gun.barrel||0)+1; if(gun.barrel%2===0 && gun.wAmmo>0){ gun.cool=frenzyT>0?.45:.9; setTimeout(sfxBreak,120); } }
   hudDirty=true;
   if(gun.weapon!=='pistol' && gun.wAmmo<=0){ gun.muzzle.getWorldPosition(vA); popup(vA.clone().add(new T.Vector3(0,.15,0)),'EMPTY','','#e9e7e2',.55,.9); sfxEmpty(); setWeapon(gun,'pistol'); }
@@ -1844,7 +1852,7 @@ function killEnemy(e,point,dir,partName,side,meleeForce,forceDrop){
   enemies.forEach(o=>{ if(o!==e && !o.dummy && o.kind!=='heavy' && o.group.position.distanceTo(e.group.position)<6) o.scaredT=1.4+Math.random()*.6; });
   removeEnemy(e);
   if(drop){ spray(point,dir,16,3.5,.5); mist(point,.5); makeRagdoll(e,point,dir,partName,side,force*.45,true); sfxThud(); dropWeapon(e); checkWaveClear(); return; }
-  const dead=makeRagdoll(e,point,dir,partName,side,force); if(!head) dead.twitchT=.6+Math.random()*.6;
+  const dead=makeRagdoll(e,point,dir,partName,side,force); if(!head) dead.twitchT=.6+Math.random()*.6; if(blastRags) blastRags.set(dead,1);
   dropWeapon(e);
   sfxThud();
   if(head && headshotSlowCd<=0){ slowmo(.4,.4); headshotSlowCd=2.5; }
@@ -1852,6 +1860,7 @@ function killEnemy(e,point,dir,partName,side,meleeForce,forceDrop){
 }
 function dropWeapon(e){ const p=e.group.position; if(e.kind==='gunner'&&Math.random()<.65) spawnPickup('mg',p); else if(e.kind==='heavy'&&Math.random()<.5) spawnPickup('shotgun',p); }
 function hitCorpse(r,partName,side,point,dir){
+  if(blastRags&&!blastRags.has(r)) blastRags.set(r,.5);
   impulse(r,point,dir,4.5); wound(point,dir,partName==='head');
   if(r.living){ finishLiving(r,point); if(partName==='head' && r.headOn) sever(r,'head',dir); return; }
   if(partName==='head' && r.headOn) sever(r,'head',dir);
