@@ -10,7 +10,7 @@ WebXR shooters for Meta Quest 3, played in the Quest browser and hosted on GitHu
 | --- | --- | --- |
 | **Last Call** | `index.html` (~1,700 lines, on the shared modules) | Wave arena, Bunker and Miami '89 maps. Shipped. |
 | **Showdowns** | `showdowns/index.html` (~2,300 lines, on the shared modules) | Seven themed mini-levels. Shipped. `campaign/` redirects here for old links. |
-| **Last Drop** | `drop/` (empty) | The planned 7-chapter campaign: two couriers, one night, a stolen bag. Solo or 2-player co-op, VR and desktop cross-play. |
+| **Last Drop** | `drop/` (rules modules, no page yet) | The planned 7-chapter campaign: two couriers, one night, a stolen bag. Solo or 2-player co-op, VR and desktop cross-play. |
 
 The owner is Kenny. He plays every change on a Quest 3, and that's the slow part of every loop, so make each change easy to check (see "Asking for a headset check").
 
@@ -51,7 +51,7 @@ Every plan task is a GitHub issue titled with its task number (for example `2.4 
 - **Before starting**, find the task's issue (`gh issue list --milestone "Phase 2: Chapter 1 solo slice"`) and check it isn't labeled `in progress`. If it's free, add `in progress` and comment what you're doing.
 - **While working**, tick the issue's checklist as parts land. Partial work (logic done, visuals not) stays open with the checklist showing what's left.
 - **When done**, open the PR with `Closes #<issue>` in the body so merging closes it. If it needs a check on the Quest, label it `needs headset check` and keep it open until Kenny confirms.
-- Don't take an issue another chat has labeled `in progress`. Phase 1 belongs to a separate chat right now.
+- Don't take an issue another chat has labeled `in progress`.
 - `gh` works through the REST API here (GraphQL is blocked): use `gh api repos/KungFuKennyOG/last-call-vr/issues/...`.
 
 ## Rules
@@ -103,7 +103,7 @@ The full spec, with the shaders, palettes, proportions and face grids, is in `cl
 
 Phases: 0 dev tooling (done), 1 engine split, 2 chapter 1 solo slice, 3 chapters 4 and 7, 4 the full campaign solo, 5 co-op and cross-play. Each task has a number, a "done when" and a size in `claude/campaign-plan.md`.
 
-**Now:** tasks 1.1–1.7 are done in code: both games run on `engine/`, `fx/`, `actors/`, `combat/` and `audio/`, and a seeded headless playthrough renders every frame identical to the old single-file pages. Showdowns lives in `showdowns/`. Still to do: the Quest check of VR input and fps (1.8), then phase 2. Each module folder is documented in `engine/README.md`.
+**Now:** phase 1 is done. Both games run on `engine/`, `fx/`, `actors/`, `combat/` and `audio/`, Showdowns lives in `showdowns/`, and Kenny checked both on the Quest at 72+ fps (2026-10-27). Next is phase 2, starting with the campaign shell (2.1). Each module folder is documented in `engine/README.md`.
 
 Ahead of phase 2, the chapter 1 rules that don't need the engine are done as pure modules in `drop/`: `codes.js` (password codes, task 2.2 logic), `bag.js` (bag events and grabber decisions, task 2.3 logic) and `rating.js` (star rating, task 2.12 math). Their visible parts (VR keypad, bag mesh, results screen) come with the campaign shell.
 
