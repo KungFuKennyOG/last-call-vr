@@ -1,12 +1,13 @@
 // Caches the game shell and three.js so the installed app keeps working offline after the first launch.
-const CACHE = 'last-call-v20';
+const CACHE = 'last-call-v21';
 const SHELL = [
   './',
   './index.html',
   './manifest.json',
   './icons/icon-192.png',
   './icons/icon-512.png',
-  'https://cdn.jsdelivr.net/npm/three@0.149.0/build/three.min.js'
+  './engine/index.js', './engine/stage.js', './engine/xr.js', './engine/input.js', './engine/loop.js', './engine/bullet-time.js',
+  'https://cdn.jsdelivr.net/npm/three@0.149.0/build/three.module.js'
 ];
 
 self.addEventListener('install', e => {
