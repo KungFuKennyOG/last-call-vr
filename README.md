@@ -9,8 +9,9 @@ A gory wave shooter for Meta Quest 3, set in a brutalist concrete techno club, b
 | Input | Action |
 |---|---|
 | Trigger | Fire (one gun per hand; hold for full-auto with the machine gun) |
-| Grip button | Grab a machine gun or shotgun off the floor |
-| Left stick | Move where you're looking (click to sprint) |
+| Grip button | Grab an Uzi or sawed-off off the floor |
+| Left stick | Run where you're looking (click to walk) |
+| Y, or click the right stick | Bullet time |
 | A | Jump (press again in mid-air to double jump) |
 | B or X | Dash (two charges; you can't be hit mid-dash) |
 | Right stick | Snap turn 30° |
@@ -24,11 +25,13 @@ Pillars block bullets both ways. Enemies come through doors on both floors, path
 
 Hits land where they hit: gut shots double enemies over, arm shots fling the arm back, leg shots buckle the knee, and the damage sticks (limps, dead arms, a hand on a gut wound). Two leg hits or some non-head kills drop them alive as physics ragdolls that clutch the wound, kick, crawl and try to roll over while they bleed out, unless you finish them. The soundtrack is dark Berlin warehouse techno at 146 BPM: a clipped kick into a reverb rumble, metallic hats and industrial clanks, atonal stabs, a phrygian acid line and screeching leads that build with each wave and your streak, an air-raid siren breakdown between waves, and full overdrive during FRENZY (M toggles it in the browser). A DJ in the balcony booth mixes along to it. Shooters pistol-whip you if you get within arm's reach.
 
-Machine guns (60 rounds, full-auto) and shotguns (10 shells, 8 pellets, launches bodies and tears limbs off) show up as floor pickups from wave 2 and drop from gunners and heavies; you go back to the pistol when they run dry. Enemies come in squads, often through a door behind you, and you can hear where: door slams, shots and groans are positional. Gunners fire machine-gun bursts, heavies fire shotgun spreads, rushers zigzag and throw bottles you can shoot down, and shooters sidestep your laser. Every kill refunds two rounds; five in a row starts a five-second FRENZY (double fire rate, no ammo use). Kills with both guns within 1.2 s score AKIMBO, and stalling a wave brings reinforcements.
+Uzis (50 rounds, full-auto) and sawed-offs (12 shells, two quick barrels then a break-open reload, 9 pellets that launch bodies and tear limbs off) show up as floor pickups from wave 2 and drop from gunners and heavies; you go back to the pistol when they run dry. Enemies come in squads, often through a door behind you, and you can hear where: door slams, shots and groans are positional. Gunners fire machine-gun bursts, heavies fire shotgun spreads, rushers zigzag and throw bottles you can shoot down, and shooters sidestep your laser. Every kill refunds two rounds; five in a row starts a five-second FRENZY (double fire rate, no ammo use). Kills with both guns within 1.2 s score AKIMBO, and stalling a wave brings reinforcements.
 
 Movement carries momentum: jumps keep your speed, you can steer in the air, and kills while airborne, mid-dash or sliding score ×1.5. Red launch pads on the floor throw you onto the balcony and the one upstairs throws you back across the hall; landing hard next to enemies stomps them. Moving fast makes enemy shots graze past more often.
 
-Browser mode (no headset): `WASD` to move, `Space` jump, `Shift` dash, `C` slide, click to lock aim, mouse to look, click to shoot (hold for full-auto), walk over a weapon to pick it up, `F` or right-click to melee, `R` to reload.
+Bullet time slows the world to about a quarter speed while you move and shoot at full speed, for up to five seconds. Kills refill the meter (headshots and airborne or dash kills more), and it trickles back on its own.
+
+Browser mode (no headset): `WASD` to move, `Space` jump, `Shift` dash, `C` slide, `E` bullet time, click to lock aim, mouse to look, click to shoot (hold for full-auto), walk over a weapon to pick it up, `F` or right-click to melee, `R` to reload.
 
 ## Install on the Quest
 
