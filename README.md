@@ -99,7 +99,18 @@ The APK runs on the Quest browser engine (the only runtime on the headset with W
 ## Local testing over USB
 
 ```bash
-python -m http.server 8000
+npm run serve            # or: python -m http.server 8000 (npm run serve turns caching off)
 adb reverse tcp:8000 tcp:8000
 # then open http://localhost:8000 in the Quest browser
 ```
+
+## Development checks
+
+The game has no build step; these are dev tools only (`npm install` once, Node 22+).
+
+```bash
+npm run check    # type check (JSDoc), lint, unit tests
+npm run smoke    # every page in headless Chromium; needs `npx playwright install chromium` once
+```
+
+CI runs both on every push. See `CLAUDE.md` for the repo's rules and layout.
