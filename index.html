@@ -1634,7 +1634,7 @@ const PADS=[[-3,0,1.5,-3,UP_Y,-8,1.3],[3,0,1.5,3,UP_Y,-8,1.3],[0,UP_Y,-8.5,0,0,5
   const ringMat=new T.MeshBasicMaterial({color:RED}); const ring=new T.Mesh(new T.RingGeometry(.46,.56,40),ringMat); ring.rotation.x=-Math.PI/2; ring.position.y=.065; g.add(ring);
   // a chevron pointing where it throws you
   const shp=new T.Shape(); shp.moveTo(0,.26); shp.lineTo(.2,.02); shp.lineTo(.1,.02); shp.lineTo(0,.14); shp.lineTo(-.1,.02); shp.lineTo(-.2,.02); shp.closePath();
-  const chev=new T.Mesh(new T.ShapeGeometry(shp),ringMat); chev.rotation.x=-Math.PI/2; chev.position.y=.066; chev.rotation.z=Math.atan2(-(tx-x),-(tz-z))+Math.PI; g.add(chev);
+  const chev=new T.Mesh(new T.ShapeGeometry(shp),ringMat); chev.rotation.x=-Math.PI/2; chev.position.y=.066; chev.rotation.z=Math.atan2(-(tx-x),-(tz-z)); g.add(chev);
   const glow=new T.Sprite(new T.SpriteMaterial({map:glowTex,color:0xff2030,transparent:true,opacity:.5,blending:T.AdditiveBlending,depthWrite:false})); glow.scale.set(1.4,.5,1); glow.position.y=.2; g.add(glow);
   const dist=Math.hypot(tx-x,tz-z), vy0=(ty-y+.5*17*ft*ft)/ft;
   return {x,y,z,ringMat,glow,dir:new T.Vector3((tx-x)/dist,0,(tz-z)/dist),vh:dist/ft,vy:vy0,ft,cool:0};
