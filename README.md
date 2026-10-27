@@ -44,7 +44,7 @@ Browser mode (no headset): `WASD` to move, `Space` jump, `Shift` dash, `C` slide
 
 **Play:** https://kungfukennyog.github.io/last-call-vr/campaign/
 
-Six short themed levels, three to six minutes each, with slower, Max Payne-style movement: you walk (no jumping or dashing), dive sideways in slow motion, and use bullet time. Enemies stand around, smoke and patrol until they see or hear you. Doors open when you walk into them and knock down whoever's behind. Each level ends with a boss and a rating.
+Seven short themed levels (six plus the original cut of the Tokyo one), three to six minutes each, with slower, Max Payne-style movement: you walk (no jumping or dashing), dive sideways in slow motion, and use bullet time. Enemies stand around, smoke and patrol until they see or hear you. Doors open when you walk into them and knock down whoever's behind. Each level ends with a boss and a rating.
 
 | | Level | Setting |
 |---|---|---|
@@ -53,7 +53,8 @@ Six short themed levels, three to six minutes each, with slower, Max Payne-style
 | 3 | No Man's Town | The front, 1944. A bombed village square at dusk: sandbags, a burning truck, grenades, artillery (watch for the red rings), a machine gun in the church window. Generic army, no insignia. |
 | 4 | Gang Wars | Chicago, 1929. Behind a barbershop, two mobs are already shooting at each other in a speakeasy; they'll shoot you too. Big Sal and his Tommy gun wait in the warehouse. Hot jazz. |
 | 5 | Morro | Rio de Janeiro, 2009. Up the stair alleys of a hillside favela with snipers on the roofs (watch for their red lasers) to the football court at the top. Baile funk. |
-| 6 | Shinjuku Rain | Tokyo, 2026. A private army has taken the crossing. Fight through a rainy izakaya alley and a street of wrecks, walk up to the charge on the konbini door for a slow-motion breach, then clear the crossing under giant screens while a helicopter's searchlight hunts you (get caught in it and everyone knows where you are); the boss fast-ropes down. Lasers on every rifle, modern cinematic score. |
+| 6 | Shinjuku Rain | Tokyo, 2026. The polished cut. A private army has taken the crossing. A helicopter sweeps the alley with its searchlight as you arrive; fight through the izakaya alley and a street of wrecks in the rain, walk up to the charge on the konbini door (three beeps, slow motion, the door flies off its hinges), then clear the crossing under giant screens while the helicopter circles with a door gunner. Shoot it enough and it smokes, spins and crashes into the crossing; leave it up and the boss and his team fast-rope down (you can shoot them on the ropes). Lightning, thunder, rain on the puddles, flickering neon, sirens in the distance. When it's over the screens switch to ALL CLEAR and the rain stops. |
+| 7 | Shinjuku Rain · OG | The original cut of the Tokyo level, kept as it was. |
 
 | Input | Action |
 |---|---|
@@ -67,6 +68,8 @@ Six short themed levels, three to six minutes each, with slower, Max Payne-style
 | Point a gun at the floor | Reload |
 
 Browser: `WASD` walk, `Space` dive, `E` bullet time, `G` throw, `F` melee, `R` reload, `Enter` to continue.
+
+Built for the Quest 3: static scenery is merged into a handful of draws, each enemy's body parts are merged per joint, corpses that stop moving are baked flat, blood, sparks, smoke, fire, decals, doves and rain are all instanced or batched, and the level lights stay at a handful. The busiest view in any level is around 150 draw calls per eye. Your frame rate shows in the corner of the wrist screen (it turns red under 65).
 
 The Uzi and the sawed-off (in both games) show their remaining rounds on a small counter on top of the gun; the sawed-off also has two shell lights for its barrels, and the wrist screen shows the count.
 
