@@ -10,6 +10,8 @@ interface Navigator {
 }
 
 interface Window {
+  /** Older Safari's prefixed AudioContext; audio/core.js falls back to it. */
+  webkitAudioContext?: typeof AudioContext;
   /** Set by dev/boot.js once the module build has started; the smoke test waits for it. */
   __bootOK?: boolean;
 }
