@@ -39,8 +39,18 @@ export function C(hex, o = {}) {
 /** One vertex-colored material that every flat color in a space merges into. */
 export const FLAT = ps1({ vcol: true });
 
-/** For mergeInto: flat colors go to FLAT with their color on the vertices; everything else stays as it is. */
-export const flatRemap = src => (src.userData.tint !== undefined ? FLAT : src);
+/**
+ * For mergeInto: flat colors go to FLAT with their color on the vertices; a texture repeated by its material has the
+ * repeat moved into the uvs instead, so every use of that texture merges into one mesh whatever its size.
+ */
+export function flatRemap(src, uv) {
+  if (src.userData.tint !== undefined) return FLAT;
+  const o = src.userData.ps1;
+  if (!o || !o.map || !o.repeat || (o.repeat[0] === 1 && o.repeat[1] === 1)) return src;
+  uv[0] *= o.repeat[0]; uv[1] *= o.repeat[1];
+  const rest = { ...o }; delete rest.repeat;
+  return ps1(rest);
+}
 export const flatColor = src => {
   const h = src.userData.tint;
   return h === undefined ? [1, 1, 1] : [((h >> 16) & 255) / 255, ((h >> 8) & 255) / 255, (h & 255) / 255];

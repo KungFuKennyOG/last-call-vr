@@ -10,7 +10,7 @@ WebXR shooters for Meta Quest 3, played in the Quest browser and hosted on GitHu
 | --- | --- | --- |
 | **Last Call** | `index.html` (~1,700 lines, on the shared modules) | Wave arena, Bunker and Miami '89 maps. Shipped. |
 | **Showdowns** | `showdowns/index.html` (~2,300 lines, on the shared modules) | Seven themed mini-levels. Shipped. `campaign/` redirects here for old links. |
-| **Last Drop** | `drop/` (rules modules, no page yet) | The planned 7-chapter campaign: two couriers, one night, a stolen bag. Solo or 2-player co-op, VR and desktop cross-play. |
+| **Last Drop** | `drop/index.html` + `drop/main.js` | The 7-chapter campaign: two couriers, one night, a stolen bag. Chapter 1 plays solo; co-op and cross-play come in phase 5. |
 
 The owner is Kenny. He plays every change on a Quest 3, and that's the slow part of every loop, so make each change easy to check (see "Asking for a headset check").
 
@@ -23,7 +23,10 @@ The owner is Kenny. He plays every change on a Quest 3, and that's the slow part
 | `combat/` | Weapons, projectiles, tracers, melee, gun throwing, pickups |
 | `fx/` | Blood, decals, sparks, smoke, rain (all instanced) |
 | `audio/` | Positional sound, music |
-| `drop/` | Last Drop: one file per chapter plus the campaign shell |
+| `drop/` | Last Drop. Pure rules at the top (`runner.js`, `radio.js`, `save.js`, `codes.js`, `bag.js`, `stun.js`, `checkpoint.js`, `disarm.js`, `rating.js`, `bosses/`), chapter data in `ch1/`, pixel art in `art/` |
+| `drop/render/` | The PS1 look: `ps1.js` (the one material, low-res frame), `geo.js` (boxes, merging), `atlas.js` + `cast.js` (bodies), `props.js` + `space.js` (spaces from data) |
+| `drop/game/` | Systems in play: `game.js` wires them; `chapter.js` (spaces, doors, the runner), `player.js`, `arms.js`, `combat.js`, `enemies.js`, `boss.js`, `bag-world.js`, `stunned.js`, `hazards.js`, `setpiece.js`, `projectiles.js`, `pickups.js`, `fx.js`, `world.js` |
+| `drop/ui/` | Title and VR keypad, wrist phone, browser HUD, results card, placeholder voices |
 | `showdowns/` | Showdowns (`campaign/index.html` only redirects here) |
 | `dev/` | Test pages, one per system (`dev/boot.html` is the first) |
 | `tests/unit/` | Node tests for pure modules |
@@ -101,11 +104,13 @@ The full spec, with the shaders, palettes, proportions and face grids, is in `cl
 
 ## Where the plan is
 
-Phases: 0 dev tooling (done), 1 engine split, 2 chapter 1 solo slice, 3 chapters 4 and 7, 4 the full campaign solo, 5 co-op and cross-play. Each task has a number, a "done when" and a size in `claude/campaign-plan.md`.
+Phases: 0 dev tooling (done), 1 engine split (done), 2 chapter 1 solo slice, 3 chapters 4 and 7, 4 the full campaign solo, 5 co-op and cross-play. Each task has a number, a "done when" and a size in `claude/campaign-plan.md`.
 
-**Now:** phase 1 is done. Both games run on `engine/`, `fx/`, `actors/`, `combat/` and `audio/`, Showdowns lives in `showdowns/`, and Kenny checked both on the Quest at 72+ fps (2026-10-27). Next is phase 2, starting with the campaign shell (2.1). Each module folder is documented in `engine/README.md`.
+**Now:** phase 1 is done (checked on the Quest 2026-10-27). Phase 2 is built: chapter 1 plays start to finish in `drop/`, solo, with every system from 2.1 to 2.12. What's left is 2.13, Kenny's playtest and performance pass on the Quest; the phase 2 issues stay open until he's checked them.
 
-Ahead of phase 2, the chapter 1 rules that don't need the engine are done as pure modules in `drop/`: `codes.js` (password codes, task 2.2 logic), `bag.js` (bag events and grabber decisions, task 2.3 logic) and `rating.js` (star rating, task 2.12 math). Their visible parts (VR keypad, bag mesh, results screen) come with the campaign shell.
+How chapter 1 hangs together: `ch1/` is data (spaces, beats, script). `runner.js` turns triggers into spawns, timed events, set piece steps and door unlocks; `game/chapter.js` loads one space at a time behind doors; `game/game.js` reacts to the runner and wires everything else. Every rules module is pure and tested; rendering and AI aren't, so headless checks drive the page (see below).
+
+**Checking Last Drop without a headset:** the page exposes `window.__drop` (the game hub). A Playwright script can click "Play in browser", place the player (`__drop.player.placeAt(x, z, yaw)`), fire triggers, kill enemies through `__drop.combat.hitEnemy`, and read `renderer.info` for draw calls. Headless frames are slow, so wait on game state (`__drop.chapter.t`, `__drop.state`), not the clock. Measured draw calls (desktop, one view): spaces 21 to 44 empty, about 11 per living cook, 1 per corpse.
 
 ## Decision log
 

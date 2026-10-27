@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { pickLines, initialRadio, radioPush, radioTick, lineDuration, MAX_QUEUE } from '../../drop/radio.js';
+import { pickLines, initialRadio, radioPush, radioTick, lineDuration, MAX_QUEUE, STALE } from '../../drop/radio.js';
 import { LINES } from '../../drop/ch1/script.js';
 
 const seq = (...v) => { let i = 0; return () => v[i++ % v.length]; };
@@ -42,4 +42,11 @@ test('a full queue drops enemy barks before radio lines', () => {
     { who: 'app', text: 'd', on: 'x', dur: 1 }, { who: 'vee', text: 'e', on: 'x', dur: 1 }, { who: 'mo', text: 'f', on: 'x', dur: 1 }]);
   assert.equal(s.queue.length, MAX_QUEUE);
   assert.deepEqual(s.queue.map(q => q.text), ['b', 'd', 'e', 'f']);
+});
+
+test('lines that waited too long in the queue are skipped, not said late', () => {
+  let s = radioPush(initialRadio(), [{ who: 'mo', text: 'old news', on: 'x', dur: 1 }], 0);
+  s = radioPush(s, [{ who: 'vee', text: 'now', on: 'y', dur: 1 }], STALE + 1);
+  const r = radioTick(s, STALE + 1.5);
+  assert.equal(r.started.text, 'now');
 });

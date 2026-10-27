@@ -62,7 +62,7 @@ export const SPACES = [
     ],
     props: [
       { kind: 'fryer', at: [-2.2, 0, -1.6] }, { kind: 'fryer', at: [-1.4, 0, -1.6] }, { kind: 'fryer', at: [1.4, 0, -4.9] },
-      { kind: 'heatLampPass', at: [0, 1.8, LANE.z] }, { kind: 'orderWall', at: [0, 2.6, 5.45], facing: Math.PI },
+      { kind: 'heatLampPass', at: [0, 2.4, LANE.z] }, { kind: 'orderWall', at: [0, 2.6, 5.45], facing: Math.PI },
       { kind: 'hood', at: [0, 3.3, -4.9] }, { kind: 'extinguisher', at: [5.85, 0.6, 3.5] },
     ],
     lights: {

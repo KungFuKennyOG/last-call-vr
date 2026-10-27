@@ -1,5 +1,5 @@
 // Caches the game shell and three.js so the installed app keeps working offline after the first launch.
-const CACHE = 'last-call-v23';
+const CACHE = 'last-call-v24';
 const SHELL = [
   './',
   './index.html',
@@ -13,7 +13,7 @@ const SHELL = [
   './actors/animate.js', './actors/body.js', './actors/damage.js', './actors/faces.js', './actors/index.js', './actors/ragdoll.js',
   './combat/guns.js', './combat/index.js', './combat/melee.js', './combat/throw.js', './combat/tracers.js',
   './drop/', './drop/index.html',
-  './drop/art/faces.js', './drop/art/palette.js', './drop/art/pixels.js', './drop/art/surfaces.js', './drop/art/textures.js', './drop/bag.js', './drop/bosses/expediter.js', './drop/ch1/beats.js', './drop/ch1/script.js', './drop/ch1/spaces.js', './drop/checkpoint.js', './drop/codes.js', './drop/disarm.js', './drop/game/chapter.js', './drop/game/player.js', './drop/game/world.js', './drop/main.js', './drop/radio.js', './drop/rating.js', './drop/render/atlas.js', './drop/render/geo.js', './drop/render/mats.js', './drop/render/props.js', './drop/render/ps1.js', './drop/render/space.js', './drop/runner.js', './drop/stun.js', './drop/ui/hud.js',
+  './drop/art/faces.js', './drop/art/palette.js', './drop/art/pixels.js', './drop/art/surfaces.js', './drop/art/textures.js', './drop/bag.js', './drop/bosses/expediter.js', './drop/ch1/beats.js', './drop/ch1/script.js', './drop/ch1/spaces.js', './drop/checkpoint.js', './drop/codes.js', './drop/disarm.js', './drop/game/arms.js', './drop/game/bag-world.js', './drop/game/boss.js', './drop/game/chapter.js', './drop/game/combat.js', './drop/game/enemies.js', './drop/game/fx.js', './drop/game/game.js', './drop/game/hazards.js', './drop/game/pickups.js', './drop/game/player.js', './drop/game/projectiles.js', './drop/game/setpiece.js', './drop/game/stunned.js', './drop/game/world.js', './drop/main.js', './drop/radio.js', './drop/rating.js', './drop/render/atlas.js', './drop/render/cast.js', './drop/render/geo.js', './drop/render/mats.js', './drop/render/props.js', './drop/render/ps1.js', './drop/render/space.js', './drop/runner.js', './drop/save.js', './drop/stun.js', './drop/ui/cards.js', './drop/ui/hud.js', './drop/ui/keypad.js', './drop/ui/title.js', './drop/ui/voice.js', './drop/ui/wrist.js',
   './audio/core.js', './audio/index.js', './audio/music.js', './audio/sfx.js',
   'https://cdn.jsdelivr.net/npm/three@0.149.0/build/three.module.js'
 ];

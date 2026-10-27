@@ -80,7 +80,7 @@ export function buildSpace(sp, world, scene) {
   for (const p of sp.props) {
     const build = PROPS[p.kind]; if (!build) continue;
     const g = build(); g.position.set(p.at[0], p.at[1], p.at[2]); g.rotation.y = p.facing || 0; deco.add(g);
-    if (g.userData.screens) { screens.push(...g.userData.screens); keep.push(...g.userData.screens); }
+    if (g.userData.screens) { const m = mergeInto(g, g.userData.screens); screens.push(...m); keep.push(...m); }
     if (g.userData.fryer) { fryers.push({ group: g, oil: g.userData.dynamicKeep[0], burning: 0 }); keep.push(...g.userData.dynamicKeep); }
     if (g.userData.extinguisher) { extinguishers.push({ group: g, at: new THREE.Vector3(...p.at), used: false }); g.userData.keepWhole = true; }
   }
@@ -89,7 +89,7 @@ export function buildSpace(sp, world, scene) {
 
   // doors
   const doors = [];
-  for (const side of ['n', 's', 'w', 'e']) for (const o of doorsBy[side]) doors.push(makeDoor(o, sp, root));
+  for (const side of ['n', 's', 'w', 'e']) for (const o of doorsBy[side]) doors.push(makeDoor(o, sp, root, solid));
 
   // rain outside open bays
   const rain = sp.props.some(p => p.kind === 'bayDoorsRain') ? makeRain(root, sp) : null;
@@ -101,7 +101,7 @@ export function buildSpace(sp, world, scene) {
   mergeInto(deco, meshesUnder(deco, skip), flatRemap, flatColor);
   for (const m of solidMerged) { m.userData.solid = true; world.solids.push(m); }
   for (const f of fryers) { f.oil.userData.fryerRef = f; world.solids.push(f.oil); }
-  for (const e of extinguishers) e.group.traverse(o => { if (o.isMesh) { o.userData.extinguisherRef = e; world.solids.push(o); } });
+  for (const e of extinguishers) { mergeInto(e.group, meshesUnder(e.group), flatRemap, flatColor); e.group.traverse(o => { if (o.isMesh) { o.userData.extinguisherRef = e; world.solids.push(o); } }); }
   world.navBuild();
 
   return {
@@ -121,16 +121,18 @@ export function buildSpace(sp, world, scene) {
 function isUnder(o, roots) { for (let p = o; p; p = p.parent) if (roots.includes(p)) return true; return false; }
 
 /** A door: panels that swing, roll up or slide, an open amount that eases toward its target, and a lock. */
-function makeDoor(o, sp, root) {
+function makeDoor(o, sp, root, solid) {
   const { d, side, inward } = o, [ow, oh] = DOOR_SIZE[d.kind];
   const [W, Dp] = sp.size;
   const g = new THREE.Group(); root.add(g);
   const x = side === 'w' ? -W / 2 : side === 'e' ? W / 2 : d.at[0], z = side === 'n' ? -Dp / 2 : side === 's' ? Dp / 2 : d.at[2];
   g.position.set(x, 0, z); g.rotation.y = { n: 0, s: Math.PI, w: Math.PI / 2, e: -Math.PI / 2 }[side];
   const panels = [];
+  // the frame never moves: it goes in with the walls and gets merged
+  const frame = new THREE.Group(); frame.position.copy(g.position); frame.rotation.copy(g.rotation); solid.add(frame);
   const frameM = C(0x3e4347);
-  mk(g, box(.08, oh, .14), frameM, -ow / 2 - .04, oh / 2, 0); mk(g, box(.08, oh, .14), frameM, ow / 2 + .04, oh / 2, 0);
-  mk(g, box(ow + .16, .1, .14), frameM, 0, oh + .05, 0);
+  mk(frame, box(.08, oh, .14), frameM, -ow / 2 - .04, oh / 2, 0); mk(frame, box(.08, oh, .14), frameM, ow / 2 + .04, oh / 2, 0);
+  mk(frame, box(ow + .16, .1, .14), frameM, 0, oh + .05, 0);
   if (d.kind === 'swing') {
     for (const s of [-1, 1]) {
       const hinge = new THREE.Group(); hinge.position.set(s * ow / 2, 0, 0); g.add(hinge);
@@ -144,7 +146,7 @@ function makeDoor(o, sp, root) {
     panels.push({ o: hinge, kind: 'hinge', s: 1 });
   } else if (d.kind === 'roller') {
     const shutter = mk(g, box(ow, oh, .06), M('roller', { repeat: [ow, oh * 2] }), 0, oh / 2, 0);
-    mk(g, box(ow + .2, .4, .4), M('roller'), 0, oh + .3, -.1);
+    mk(frame, box(ow + .2, .4, .4), M('roller'), 0, oh + .3, -.1);
     panels.push({ o: shutter, kind: 'roll', h: oh });
   } else if (d.kind === 'bay') {
     for (const s of [-1, 1]) { const p = mk(g, box(ow / 2, oh, .08), M('corrugated', { repeat: [ow / 2, oh] }), s * ow / 4, oh / 2, 0); panels.push({ o: p, kind: 'slide', s, w: ow / 2 }); }

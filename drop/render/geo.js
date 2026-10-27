@@ -120,9 +120,10 @@ const mInv = new THREE.Matrix4(), mRel = new THREE.Matrix4(), nm = new THREE.Mat
  * @param {any[]} meshes
  * @param {(mat: any, uv: number[]) => any} [remap]
  * @param {(mat: any) => number[]} [colorOf]
+ * @param {boolean} [keep] leave the source meshes where they are (a corpse that may wake up again)
  * @returns {any[]} new meshes, already added to parent
  */
-export function mergeInto(parent, meshes, remap, colorOf) {
+export function mergeInto(parent, meshes, remap, colorOf, keep) {
   parent.updateMatrixWorld(true); mInv.copy(parent.matrixWorld).invert();
   /** @type {Map<any, { P: number[], N: number[], T: number[], C: number[] | null }>} */
   const out = new Map();
@@ -133,7 +134,7 @@ export function mergeInto(parent, meshes, remap, colorOf) {
     const groups = g.groups.length ? g.groups : [{ start: 0, count: idx ? idx.count : P.count, materialIndex: 0 }];
     for (const gr of groups) {
       const src = Array.isArray(o.material) ? o.material[gr.materialIndex] : o.material;
-      if (!src || src.visible === false) continue;
+      if (!src || src.visible === false || src.userData.noMerge) continue;
       for (let k = gr.start; k < gr.start + gr.count; k++) {
         const i = idx ? idx.getX(k) : k;
         uv[0] = Tt ? Tt.getX(i) : 0; uv[1] = Tt ? Tt.getY(i) : 0;
@@ -149,7 +150,7 @@ export function mergeInto(parent, meshes, remap, colorOf) {
         }
       }
     }
-    o.parent && o.parent.remove(o);
+    if (!keep && o.parent) o.parent.remove(o);
   }
   const made = [];
   out.forEach((b, mat) => {

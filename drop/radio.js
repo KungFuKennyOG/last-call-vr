@@ -6,10 +6,11 @@
 // Lines queue so they never talk over each other; a line takes about as long as it takes to read.
 
 /** @typedef {{ on: string, who: string, text: string, mode?: string }} Line */
-/** @typedef {{ who: string, text: string, on: string, dur: number }} Queued */
+/** @typedef {{ who: string, text: string, on: string, dur: number, at?: number }} Queued */
 
-export const READ_BASE = 1.1;    // s
-export const READ_PER_CHAR = .055;
+export const READ_BASE = .9;     // s
+export const READ_PER_CHAR = .045;
+export const STALE = 7;          // s a line can wait in the queue before it's no longer worth saying
 export const MAX_QUEUE = 4;      // lines waiting; older barks drop first when it fills
 const BARKERS = new Set(['cook', 'grabber', 'expediter']);
 
@@ -41,9 +42,9 @@ export function pickLines(script, on, mode, rand, last = {}) {
 /** @returns {{ queue: Queued[], now: Queued | null, until: number }} */
 export function initialRadio() { return { queue: [], now: null, until: 0 }; }
 
-/** Adds lines to the queue. When it's full, enemy barks waiting in it go first, then the oldest. */
-export function radioPush(state, lines) {
-  const queue = state.queue.concat(lines);
+/** Adds lines to the queue (stamped with the time t). When it's full, enemy barks waiting in it go first, then the oldest. */
+export function radioPush(state, lines, t = 0) {
+  const queue = state.queue.concat(lines.map(l => ({ ...l, at: t })));
   while (queue.length > MAX_QUEUE) {
     const i = queue.findIndex(q => BARKERS.has(q.who));
     queue.splice(i >= 0 ? i : 0, 1);
@@ -54,8 +55,9 @@ export function radioPush(state, lines) {
 /** Every frame with real time. `started` is the line that just came up (to voice it), or null. */
 export function radioTick(state, t) {
   if (state.now && t < state.until) return { state, started: null };
-  if (!state.queue.length) return { state: state.now ? { ...state, now: null } : state, started: null };
-  const [next, ...rest] = state.queue;
+  const fresh = state.queue.filter(q => !(t - (q.at ?? t) > STALE));
+  if (!fresh.length) return { state: state.now || state.queue.length ? { queue: [], now: null, until: 0 } : state, started: null };
+  const [next, ...rest] = fresh;
   return { state: { queue: rest, now: next, until: t + next.dur }, started: next };
 }
 

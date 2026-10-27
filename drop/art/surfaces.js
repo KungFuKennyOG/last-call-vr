@@ -63,6 +63,12 @@ export const cookBack = () => flat(16, 16, PAL.cookHair, 72, 10, i => rect(i, PA
 export const hair = () => flat(16, 16, PAL.cookHair, 70, 12);
 export const clog = () => flat(8, 8, '#141414', 0, 0, i => rect(i, '#2a2a2a', 0, 0, 8, 1));
 export const skinCook = () => flat(8, 8, PAL.cookSkin, 77, 6);
+export const chefBlackFront = () => flat(16, 24, '#232327', 78, 10, i => { for (let y = 5; y < 20; y += 4) { rect(i, '#c9c6be', 5, y, 1, 1); rect(i, '#c9c6be', 10, y, 1, 1); } rect(i, '#3a3a40', 0, 0, 16, 2); rect(i, PAL.blood, 3, 15, 2, 2); });
+export const chefBlackSide = () => flat(16, 24, '#232327', 79, 10);
+export const chefBlackSleeve = () => flat(8, 16, '#232327', 80, 10, i => rect(i, '#3a3a40', 0, 0, 8, 2));
+export const apronRed = () => flat(16, 16, '#9a1418', 81, 12, i => { rect(i, '#6a0a0e', 0, 0, 16, 1); rect(i, '#e8e6df', 6, 5, 4, 3); text(i, '86', 5, 6, '#9a1418'); });
+export const bandana = () => flat(16, 8, PAL.blood, 82, 14, i => { for (let x = 1; x < 16; x += 4) rect(i, '#ffd0d0', x, 3, 1, 1); });
+export const pants = () => flat(16, 16, '#24252a', 83, 12, i => rect(i, '#33343a', 0, 0, 1, 16));
 export const tag = (label = 'CHEF') => flat(16, 8, '#e8e6df', 0, 0, i => text(i, label, (16 - textWidth(label)) >> 1, 2, '#18181a'));
 
 /** Every surface and prop texture by name. */
@@ -70,4 +76,5 @@ export const SURFACES = {
   ceiling, frp, steelDark, steelPlate, freezerPanel, concrete, corrugated, asphalt, facade, darkWall, roller, swingDoor,
   counterFront, cardboard, oil, wire, lamp, fluo, frostLight, kraft, pos, black, slide, wood, cleaver, extinguisher, teal, frame, tire, pallet,
   tray, pan, syringe, rain, chefSide, chefSleeve, cookSide, cookBack, hair, clog, skinCook, tag,
+  chefBlackFront, chefBlackSide, chefBlackSleeve, apronRed, bandana, pants,
 };

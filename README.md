@@ -83,15 +83,25 @@ The Uzi and the sawed-off (in both games) show their remaining rounds on a small
 
 A seven-chapter campaign over one rainy night, in a PS1-style look. Two couriers, Mo and Vee, pick up the wrong order from a ghost kitchen: a bag with a hardware wallet holding a syndicate's money. By midnight there's a bounty on them, and every crew in the city wants the bag. Light-hearted buddy action with cartoonish gore. Play it alone, or later in 2-player co-op with any mix of Quest and computer. Progress saves as old-school password codes.
 
-**Play (in progress):** https://kungfukennyog.github.io/last-call-vr/drop/ in the Quest browser.
+**Play:** https://kungfukennyog.github.io/last-call-vr/drop/ in the Quest browser (or in a computer browser with mouse and keyboard).
 
-**Status:** chapter 1 is being built (phase 2). The page boots into the ghost kitchen in the PS1 look, you can walk, grab the bag and go through doors from space to space. Progress is tracked in the [issues](https://github.com/KungFuKennyOG/last-call-vr/issues) and [milestones](https://github.com/KungFuKennyOG/last-call-vr/milestones), one milestone per phase.
+**Status:** chapter 1, *Wrong Order*, plays start to finish, solo: grab the bag at the pickup counter, survive the fryer line and the bounty going live, get locked in the walk-in freezer, take down the Expediter in the pass, and get out through the loading dock. You get a 1–5 star delivery rating and a password code at the end.
+
+**How it plays**
+
+- A pistol in each hand, always. Point a gun at the floor to reload. Kills refill bullet time (Y or right stick click) and add two rounds.
+- The bag rides on your back. Grabbers go for it and run for a door: drop them and walk over the bag to take it back. If one gets out, the checkpoint restarts.
+- Shoot a cook's gun hand to disarm him: he runs, begs, rushes you bare-handed or goes back for the gun. Disarms are worth the most style.
+- Grip picks things up (Q in the browser): a dropped Uzi, a cleaver (trigger throws it, and it kills), the extinguisher on the wall (hold the trigger to spray: puts out fires, chokes cooks). With nothing in reach, B or grip throws what you hold; a thrown gun stuns.
+- Shoot a fryer and burning oil blocks the lane in front of it. Shoot the extinguisher for a white cloud.
+- Out of health means stunned, not dead: the world goes grey and you can't shoot. Grip near your chest to take the adrenaline shot, then stab it down into your thigh (H in the browser). One per chapter.
+- Checkpoints are taken at each door. Codes and cheats go in the box on the title screen, or on the keypad in VR. Try `BIGHEADS`, `SLOWSLOW` or `ONEHITKO`.
 
 | Phase | What it delivers |
 | --- | --- |
 | 0. Dev tooling | Checks and tests Claude can run on its own (done) |
 | 1. Engine split | Shared modules for both games, no visible change (done) |
-| 2. Chapter 1 | The first chapter, solo, start to finish |
+| 2. Chapter 1 | The first chapter, solo, start to finish (built; headset check pending) |
 | 3. Chapters 4 and 7 | A short campaign with all three endings |
 | 4. Full campaign | All seven chapters, solo |
 | 5. Co-op and cross-play | Two players, VR or computer, voice chat |
