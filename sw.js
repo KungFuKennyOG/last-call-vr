@@ -1,5 +1,5 @@
 // Caches the game shell and three.js so the installed app keeps working offline after the first launch.
-const CACHE = 'last-call-v19';
+const CACHE = 'last-call-v20';
 const SHELL = [
   './',
   './index.html',
@@ -21,15 +21,16 @@ self.addEventListener('activate', e => {
   );
 });
 
-// Network first for the page (so pushes show up), cache first for everything else.
+// Network first for our own files (pages and modules, so pushes show up), cache first for the CDN.
 self.addEventListener('fetch', e => {
   if (e.request.method !== 'GET') return;
   const isPage = e.request.mode === 'navigate';
-  if (isPage) {
+  const isOwn = new URL(e.request.url).origin === self.location.origin;
+  if (isPage || isOwn) {
     e.respondWith(
       fetch(e.request)
-        .then(r => { const copy = r.clone(); caches.open(CACHE).then(c => c.put(e.request, copy)); return r; })
-        .catch(() => caches.match(e.request).then(r => r || caches.match('./index.html')))
+        .then(r => { if (r.ok) { const copy = r.clone(); caches.open(CACHE).then(c => c.put(e.request, copy)); } return r; })
+        .catch(() => caches.match(e.request).then(r => r || (isPage ? caches.match('./index.html') : Response.error())))
     );
     return;
   }

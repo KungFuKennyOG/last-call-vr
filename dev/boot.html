@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Module Boot Test</title>
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.149.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.149.0/examples/jsm/"
+} }
+</script>
+<style>
+:root{ --bg:#0a0a0a; --ink:#e9e7e2; --muted:#8a8780; --red:#e0162b; color-scheme:dark; }
+html,body{height:100%;margin:0}
+body{background:var(--bg);color:var(--ink);font:14px/1.5 ui-monospace,Menlo,monospace;overflow:hidden}
+#c{position:fixed;inset:0;width:100%;height:100%;display:block}
+#ui{position:fixed;left:16px;right:16px;bottom:24px;display:grid;gap:10px;max-width:480px}
+h1{margin:0;font-size:20px;letter-spacing:.04em;text-transform:uppercase}
+#status{margin:0;color:var(--muted)}
+#status.bad{color:var(--red)}
+button{font:inherit;font-weight:600;padding:12px 16px;border:0;background:var(--red);color:#fff;cursor:pointer}
+button:disabled{background:#2a2928;color:var(--muted);cursor:default}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="ui">
+  <h1>Module boot test</h1>
+  <p id="status">Loading modules…</p>
+  <button id="vrBtn" disabled>Enter VR</button>
+</div>
+<script type="module" src="boot.js"
+  onerror="var s=document.getElementById('status');s.className='bad';s.textContent='Module build failed to load. Check the console.'"></script>
+</body>
+</html>
