@@ -65,7 +65,7 @@ dl.how dd{margin:0;min-width:0;color:var(--muted)}
   <div class="card">
     <div class="rule"></div>
     <h1 class="logo">Last Call</h1>
-    <p class="tag">Sunday, 6 a.m., a concrete power-station hall with no phones and no mercy. Hold the floor with two pistols against everyone coming through the doors. <b>Everything you drop goes down as a ragdoll.</b></p>
+    <p class="tag">Sunday, 6 a.m., a concrete power-station hall on two floors, with no phones and no mercy. Hold it with two pistols against everyone coming through the doors and down the stairs. <b>Everything you drop goes down as a ragdoll.</b></p>
     <div class="btns">
       <button id="vrBtn" type="button">Enter VR</button>
       <button id="deskBtn" class="ghost" type="button">Play in browser</button>
@@ -75,6 +75,7 @@ dl.how dd{margin:0;min-width:0;color:var(--muted)}
       <dt>Trigger</dt><dd>Fire. One pistol per hand.</dd>
       <dt>Left stick</dt><dd>Move where you look. Right stick snap-turns.</dd>
       <dt>Pillars</dt><dd>Stop bullets both ways. Use them.</dd>
+      <dt>Stairs</dt><dd>Two runs along the side walls lead up to the balcony. They use them too, and they shoot down from up there.</dd>
       <dt>Reload</dt><dd>Point a gun at the floor. It spins and reloads.</dd>
       <dt>Red tracers</dt><dd>Dodge for slow-mo, or shoot them out of the air.</dd>
       <dt>Wrist</dt><dd>Wave, score and streak live on your left gun.</dd>
@@ -115,17 +116,52 @@ camera.position.set(0,1.6,0);
 const rig = new T.Group(); rig.add(camera); scene.add(rig);
 const RED=0xe0162b, WHITE=0xe9e7e2;
 
-/* ---------- hall dimensions + collision ---------- */
-const HX=18, HZ=14, CEIL=14;
+/* ---------- hall dimensions + collision (two floors) ---------- */
+const HX=18, HZ=14, CEIL=14, UP_Y=5, BAL_Z=-7, RAMP_W=2.4, RAMP_LO=3;
 const COLS=[], solids=[];
 [-10,-3.5,3.5,10].forEach(x=>[-7,0,7].forEach(z=>COLS.push({x,z,h:.6})));
-function pushOut(p,r){
+// walkable surfaces above the ground floor: the balcony slab and two stair runs along the side walls
+const SURF=[
+  {slab:true,x0:-HX,x1:HX,z0:-HZ,z1:BAL_Z,top:UP_Y,bot:UP_Y-.3},
+  {ramp:true,x0:-HX,x1:-HX+RAMP_W,z0:BAL_Z,z1:RAMP_LO},
+  {ramp:true,x0:HX-RAMP_W,x1:HX,z0:BAL_Z,z1:RAMP_LO}];
+const rampH=z=>Math.max(0,Math.min(UP_Y,UP_Y*(RAMP_LO-z)/(RAMP_LO-BAL_Z)));
+const surfTop=(s,z)=>s.slab?s.top:rampH(z);
+const inS=(s,x,z)=>x>=s.x0&&x<=s.x1&&z>=s.z0&&z<=s.z1;
+function groundAt(x,z,y){ let g=0; for(const s of SURF){ if(!inS(s,x,z)) continue; const h=surfTop(s,z); if(h<=y+.55&&h>g) g=h; } return g; }
+function rampIdx(x,z){ return inS(SURF[1],x,z)?1:inS(SURF[2],x,z)?2:0; }
+// boxes that stop movement: pillars, the balcony rail, the stair rails, the bar, the speaker stacks
+const WALLS=COLS.map(c=>({x0:c.x-c.h,x1:c.x+c.h,z0:c.z-c.h,z1:c.z+c.h,y0:0,y1:CEIL}));
+WALLS.push({x0:-HX+RAMP_W,x1:-HX+RAMP_W+.1,z0:BAL_Z,z1:RAMP_LO,y0:0,y1:UP_Y+1.1});
+WALLS.push({x0:HX-RAMP_W-.1,x1:HX-RAMP_W,z0:BAL_Z,z1:RAMP_LO,y0:0,y1:UP_Y+1.1});
+WALLS.push({x0:-HX+RAMP_W+.12,x1:HX-RAMP_W-.12,z0:BAL_Z-.06,z1:BAL_Z+.06,y0:UP_Y,y1:UP_Y+1.1});
+WALLS.push({x0:6,x1:14,z0:HZ-1.1,z1:HZ,y0:0,y1:1.1});
+[[-14.2,10.6],[14.2,9.4]].forEach(([x,z])=>WALLS.push({x0:x-1.1,x1:x+1.1,z0:z-.8,z1:z+.8,y0:0,y1:4.6}));
+function pushOut(p,r,y,tall){
+  if(y===undefined) y=p.y; if(tall===undefined) tall=1.7;
   if(p.x>HX-r) p.x=HX-r; if(p.x<-HX+r) p.x=-HX+r; if(p.z>HZ-r) p.z=HZ-r; if(p.z<-HZ+r) p.z=-HZ+r;
-  for(let i=0;i<COLS.length;i++){ const c=COLS[i], dx=p.x-c.x, dz=p.z-c.z, ox=c.h+r-Math.abs(dx), oz=c.h+r-Math.abs(dz);
+  for(let pass=0;pass<2;pass++) for(let i=0;i<WALLS.length;i++){ const w=WALLS[i]; if(y+tall<w.y0||y>w.y1) continue;
+    const cx=(w.x0+w.x1)/2, cz=(w.z0+w.z1)/2, hx=(w.x1-w.x0)/2+r, hz=(w.z1-w.z0)/2+r, dx=p.x-cx, dz=p.z-cz, ox=hx-Math.abs(dx), oz=hz-Math.abs(dz);
     if(ox>0&&oz>0){ if(ox<oz) p.x+=(dx<0?-1:1)*ox; else p.z+=(dz<0?-1:1)*oz; } }
 }
-function colAt(x,z,r){ for(let i=0;i<COLS.length;i++){ const c=COLS[i]; if(Math.abs(x-c.x)<c.h+r && Math.abs(z-c.z)<c.h+r) return c; } return null; }
-function blocked(ax,az,bx,bz){ const d=Math.hypot(bx-ax,bz-az), n=Math.ceil(d/.3); for(let i=1;i<n;i++){ const t=i/n; if(colAt(ax+(bx-ax)*t,az+(bz-az)*t,.05)) return true; } return false; }
+function stepBlocked(x,z,y){ for(const s of SURF){ if(!inS(s,x,z)) continue; const h=surfTop(s,z), bot=s.slab?s.bot:0; if(h>y+.55 && bot<y+1.7) return true; } return false; }
+function moveEntity(p,dx,dz,r,y){
+  if(!stepBlocked(p.x+dx,p.z+dz,y)){ p.x+=dx; p.z+=dz; }
+  else if(!stepBlocked(p.x+dx,p.z,y)) p.x+=dx;
+  else if(!stepBlocked(p.x,p.z+dz,y)) p.z+=dz;
+  pushOut(p,r,y);
+}
+function solidAt(x,y,z){
+  if(Math.abs(x)>HX||Math.abs(z)>HZ||y<0||y>CEIL) return true;
+  for(const w of WALLS) if(x>w.x0&&x<w.x1&&z>w.z0&&z<w.z1&&y>w.y0&&y<w.y1) return true;
+  for(const s of SURF){ if(!inS(s,x,z)) continue; if(s.slab?(y>s.bot&&y<s.top):y<rampH(z)) return true; }
+  return false;
+}
+const losRay=new THREE.Raycaster(), losDir=new THREE.Vector3();
+function canSee(a,b){ losDir.copy(b).sub(a); const d=losDir.length(); losDir.divideScalar(d); losRay.set(a,losDir); losRay.far=d-.3; return losRay.intersectObjects(solids,false).length===0; }
+const STAIRS=[1,2].map(i=>{ const s=SURF[i], x=(s.x0+s.x1)/2; return {i,x,
+  bot:new THREE.Vector3(x,0,RAMP_LO+1.2), botIn:new THREE.Vector3(x,0,RAMP_LO-.6),
+  top:new THREE.Vector3(x,UP_Y,BAL_Z-.9), topIn:new THREE.Vector3(x,UP_Y,BAL_Z+.6)}; });
 
 /* ---------- procedural textures ---------- */
 function rng(seed){ let s=seed>>>0; return ()=>{ s=(s*1664525+1013904223)>>>0; return s/4294967296; }; }
@@ -187,23 +223,38 @@ const basicMats={}; const basic=c=>basicMats[c]||(basicMats[c]=new T.MeshBasicMa
   const colGeo=new T.BoxGeometry(1.2,CEIL,1.2);
   COLS.forEach(c=>{ const m=new T.Mesh(colGeo,colMat); m.position.set(c.x,CEIL/2,c.z); m.userData={solid:true}; scene.add(m); solids.push(m); });
   const steel=new T.MeshLambertMaterial({color:0x1b1b1d});
+  const solid=m=>{ m.userData={solid:true}; solids.push(m); scene.add(m); return m; };
+  solid(floor); solid(ceil);
+  scene.children.filter(o=>o.isMesh&&o.geometry.type==='PlaneGeometry'&&o.material.map&&o!==floor).forEach(w=>{ if(!solids.includes(w)){ w.userData={solid:true}; solids.push(w); } });
   // girders
   [-10.5,-3.5,3.5,10.5].forEach(z=>{ const b=new T.Mesh(new T.BoxGeometry(HX*2,.9,.45),steel); b.position.set(0,CEIL-.9,z); scene.add(b); });
-  // catwalk along the back wall
-  const cw=new T.Mesh(new T.BoxGeometry(HX*2-.2,.18,2.2),steel); cw.position.set(0,5,-HZ+1.1); scene.add(cw);
-  const rail=new T.Mesh(new T.BoxGeometry(HX*2-.2,.05,.05),steel); rail.position.set(0,6.05,-HZ+2.15); scene.add(rail);
-  for(let x=-HX+1;x<HX;x+=2){ const p=new T.Mesh(new T.BoxGeometry(.05,1.05,.05),steel); p.position.set(x,5.55,-HZ+2.15); scene.add(p); }
-  for(let x=-HX+3;x<HX;x+=6){ const p=new T.Mesh(new T.BoxGeometry(.18,5,.18),steel); p.position.set(x,2.5,-HZ+2.1); scene.add(p); }
-  // booth up on the catwalk
-  const booth=new T.Mesh(new T.BoxGeometry(4,1.1,1.1),new T.MeshLambertMaterial({color:0x111112})); booth.position.set(0,5.64,-HZ+1.2); scene.add(booth);
-  // speaker stacks
-  const blk=new T.MeshLambertMaterial({color:0x0d0d0e}), cone=new T.MeshLambertMaterial({color:0x232325});
-  [[-14,-11.6],[14,-11.6],[-14,11.6],[14,11.6]].forEach(([x,z])=>{
-    const s=new T.Mesh(new T.BoxGeometry(2.2,4.6,1.6),blk); s.position.set(x,2.3,z); scene.add(s);
-    [3.6,2.3,1].forEach(y=>{ const c=new T.Mesh(new T.CircleGeometry(.55,24),cone); c.position.set(x,y,z+(z<0?.81:-.81)); if(z>0) c.rotation.y=Math.PI; scene.add(c); });
+  // balcony slab: second floor across the back of the hall
+  const balT=floorTex.clone(); balT.needsUpdate=true; balT.repeat.set(HX/3,(HZ+BAL_Z)/3);
+  const slabMats=[colMat,colMat,new T.MeshLambertMaterial({map:balT,color:0x8a8884}),new T.MeshLambertMaterial({color:0x151414}),colMat,colMat];
+  const slab=new T.Mesh(new T.BoxGeometry(HX*2,.3,HZ+BAL_Z),slabMats); slab.position.set(0,UP_Y-.15,(-HZ+BAL_Z)/2); solid(slab);
+  // balcony rail
+  const railTop=new T.Mesh(new T.BoxGeometry(HX*2-RAMP_W*2,.06,.06),steel); railTop.position.set(0,UP_Y+1.05,BAL_Z); solid(railTop);
+  const railMid=new T.Mesh(new T.BoxGeometry(HX*2-RAMP_W*2,.04,.04),steel); railMid.position.set(0,UP_Y+.55,BAL_Z); scene.add(railMid);
+  for(let x=-HX+RAMP_W;x<=HX-RAMP_W+.01;x+=1.6){ const p=new T.Mesh(new T.BoxGeometry(.05,1.05,.05),steel); p.position.set(x,UP_Y+.52,BAL_Z); scene.add(p); }
+  // two stair runs along the side walls, ground floor at z=3 up to the balcony at z=-7
+  const stepMat=new T.MeshLambertMaterial({map:colT,color:0x8a8884}), N=20, run=(RAMP_LO-BAL_Z)/N;
+  [1,2].forEach(i=>{ const s=SURF[i], cx=(s.x0+s.x1)/2;
+    for(let k=0;k<N;k++){ const top=(k+1)*UP_Y/N, st=new T.Mesh(new T.BoxGeometry(RAMP_W,top,run),stepMat); st.position.set(cx,top/2,RAMP_LO-run/2-k*run); solid(st); }
+    const ex=i===1?s.x1:s.x0, len=Math.hypot(RAMP_LO-BAL_Z,UP_Y);
+    const rail=new T.Mesh(new T.BoxGeometry(.05,.05,len),steel); rail.position.set(ex,UP_Y/2+1.05,(RAMP_LO+BAL_Z)/2); rail.rotation.x=Math.atan2(UP_Y,RAMP_LO-BAL_Z); scene.add(rail);
+    for(let k=0;k<=6;k++){ const z=RAMP_LO-k*(RAMP_LO-BAL_Z)/6, y=rampH(z); const p=new T.Mesh(new T.BoxGeometry(.05,1.05,.05),steel); p.position.set(ex,y+.52,z); scene.add(p); }
   });
-  // bar
-  const bar=new T.Mesh(new T.BoxGeometry(1.1,1.1,8),new T.MeshLambertMaterial({map:colT,color:0x8a8884})); bar.position.set(HX-.55,.55,3); scene.add(bar);
+  // booth up on the balcony
+  const booth=new T.Mesh(new T.BoxGeometry(4,1.1,1.1),new T.MeshLambertMaterial({color:0x111112})); booth.position.set(0,UP_Y+.55,-HZ+1.4); solid(booth);
+  // speaker stacks: two on the floor, two on the balcony
+  const blk=new T.MeshLambertMaterial({color:0x0d0d0e}), cone=new T.MeshLambertMaterial({color:0x232325});
+  [[-14.2,0,10.6,4.6],[14.2,0,9.4,4.6],[-12.5,UP_Y,-12.4,3.2],[12.5,UP_Y,-12.4,3.2]].forEach(([x,y,z,h])=>{
+    const st=new T.Mesh(new T.BoxGeometry(2.2,h,1.6),blk); st.position.set(x,y+h/2,z); solid(st);
+    const face=z>0?-1:1;
+    [h*.78,h*.5,h*.22].forEach(cy=>{ const c=new T.Mesh(new T.CircleGeometry(.5,24),cone); c.position.set(x,y+cy,z+face*.81); if(face<0) c.rotation.y=Math.PI; scene.add(c); });
+  });
+  // bar along the front wall
+  const bar=new T.Mesh(new T.BoxGeometry(8,1.1,1.1),stepMat); bar.position.set(10,.55,HZ-.55); solid(bar);
   // pipes
   const pipe=new T.Mesh(new T.CylinderGeometry(.18,.18,HZ*2,10),steel); pipe.rotation.x=Math.PI/2; pipe.position.set(-HX+.4,9,0); scene.add(pipe);
   const pipe2=pipe.clone(); pipe2.position.set(HX-.4,9.5,0); scene.add(pipe2);
@@ -212,7 +263,7 @@ const basicMats={}; const basic=c=>basicMats[c]||(basicMats[c]=new T.MeshBasicMa
 /* ---------- lights ---------- */
 scene.add(new T.HemisphereLight(0x8a8a90, 0x0a0808, .55));
 const redLights=[];
-[[-12,4.5,-9],[12,4.5,8],[0,7,-11.5]].forEach(([x,y,z])=>{ const l=new T.PointLight(RED,2.2,20,1.6); l.position.set(x,y,z); scene.add(l); redLights.push(l); });
+[[-9,3.6,-10.5],[12,4.5,8],[0,8.5,-10.5]].forEach(([x,y,z])=>{ const l=new T.PointLight(RED,2.2,20,1.6); l.position.set(x,y,z); scene.add(l); redLights.push(l); });
 const pool=new T.SpotLight(0xdde6ff,2.4,30,.42,.6,1.2); pool.position.set(0,CEIL-1.5,0); pool.target.position.set(0,0,0); scene.add(pool,pool.target);
 const strobe=new T.PointLight(0xffffff,0,40,1.2); strobe.position.set(0,CEIL-3,0); scene.add(strobe);
 const muzzleLight=new T.PointLight(0xffd8a0,0,9); scene.add(muzzleLight);
@@ -222,18 +273,20 @@ COLS.forEach((c,i)=>{ if(i%3!==1) return; const m=new T.MeshBasicMaterial({color
   [[0,.61,0],[0,-.61,Math.PI]].forEach(([dx,dz])=>{ const t=new T.Mesh(new T.BoxGeometry(.05,2.2,.05),m); t.position.set(c.x+dx,3.2,c.z+dz); scene.add(t); }); });
 const fluoroMat=new T.MeshBasicMaterial({color:0xdfe6ff});
 [[0,0],[-7,-3.5],[7,3.5],[-7,10.5],[7,-10.5]].forEach(([x,z])=>{ const f=new T.Mesh(new T.BoxGeometry(2.4,.06,.1),fluoroMat); f.position.set(x,CEIL-1.45,z); scene.add(f); });
+// darkroom under the balcony: a single dim red bar
+{ const f=new T.Mesh(new T.BoxGeometry(3,.05,.08),new T.MeshBasicMaterial({color:0x7a0a12})); f.position.set(-9,UP_Y-.36,-10.5); scene.add(f); }
 const shaftMat=new T.MeshBasicMaterial({color:0xdfe6ff,transparent:true,opacity:.04,blending:T.AdditiveBlending,depthWrite:false,side:T.DoubleSide,fog:false});
 { const g=new T.CylinderGeometry(.4,3.2,CEIL-1.5,24,1,true); const s=new T.Mesh(g,shaftMat); s.position.set(0,(CEIL-1.5)/2,0); scene.add(s); }
 const redShaftMat=new T.MeshBasicMaterial({color:RED,transparent:true,opacity:.035,blending:T.AdditiveBlending,depthWrite:false,side:T.DoubleSide,fog:false});
-[[-12,-9],[12,8]].forEach(([x,z])=>{ const s=new T.Mesh(new T.CylinderGeometry(.2,2.4,4.5,18,1,true),redShaftMat); s.position.set(x,2.25,z); scene.add(s); });
+[[-9,-10.5,3.6],[12,8,4.5]].forEach(([x,z,h])=>{ const s=new T.Mesh(new T.CylinderGeometry(.2,2.4,h,18,1,true),redShaftMat); s.position.set(x,h/2,z); scene.add(s); });
 
 /* ---------- doors ---------- */
-const DOORS=[[-HX+.6,0,-6],[-HX+.6,0,6],[HX-.6,0,-6],[HX-.6,0,6],[-8,0,-HZ+.6],[8,0,-HZ+.6],[0,0,HZ-.6]].map(([x,y,z])=>{
-  const side=Math.abs(x)>HX-1, frame=new T.Mesh(new T.BoxGeometry(side?.12:2.2,2.8,side?2.2:.12),new T.MeshBasicMaterial({color:0x020202}));
-  frame.position.set(side?Math.sign(x)*(HX-.05):x,1.4,side?z:Math.sign(z)*(HZ-.05)); scene.add(frame);
+const DOORS=[[-HX,0,8],[HX,0,8],[-HX,0,-10],[HX,0,-10],[-6,0,HZ],[2,0,HZ],[-8,UP_Y,-HZ],[8,UP_Y,-HZ]].map(([x,y,z])=>{
+  const side=Math.abs(x)>=HX, frame=new T.Mesh(new T.BoxGeometry(side?.12:2.2,2.8,side?2.2:.12),new T.MeshBasicMaterial({color:0x020202}));
+  frame.position.set(side?Math.sign(x)*(HX-.05):x,y+1.4,side?z:Math.sign(z)*(HZ-.05)); scene.add(frame);
   const lampMat=new T.MeshBasicMaterial({color:0x5a0710}); const lamp=new T.Mesh(new T.BoxGeometry(side?.08:.5,.14,side?.5:.08),lampMat);
-  lamp.position.set(frame.position.x,3.05,frame.position.z); scene.add(lamp);
-  return {x,z,lampMat,flash:0};
+  lamp.position.set(frame.position.x,y+3.05,frame.position.z); scene.add(lamp);
+  return {x:side?Math.sign(x)*(HX-.6):x,y,z:side?z:Math.sign(z)*(HZ-.6),lampMat,flash:0};
 });
 
 /* ---------- audio ---------- */
@@ -347,7 +400,7 @@ function decal(pos,normal,size,grow,kind){
   const m=new T.Mesh(decalGeo,mat);
   m.quaternion.setFromUnitVectors(ZAXIS,normal); m.rotateZ(Math.random()*6.28);
   m.position.copy(pos).addScaledVector(normal,.006);
-  if(normal.y>.9){ decalY=(decalY+1)%40; m.position.y=.002+decalY*.0002; }
+  if(normal.y>.9){ decalY=(decalY+1)%40; m.position.y=groundAt(pos.x,pos.z,pos.y+.3)+.002+decalY*.0002; }
   const d={m,size,grow:grow||0,t:0}; m.scale.setScalar(grow?size*.15:size);
   scene.add(m); decals.push(d);
   if(decals.length>220){ const o=decals.shift(); scene.remove(o.m); o.m.material.dispose(); }
@@ -355,10 +408,16 @@ function decal(pos,normal,size,grow,kind){
 }
 const nTmp=new T.Vector3();
 function surfaceNormal(p){
-  if(p.y<.03) return nTmp.set(0,1,0);
+  const gy=groundAt(p.x,p.z,p.y+.05); if(p.y<gy+.03){ p.y=gy; return nTmp.set(0,1,0); }
+  if(p.y>CEIL-.05) return nTmp.set(0,-1,0);
   if(p.x>HX-.08) return nTmp.set(-1,0,0); if(p.x<-HX+.08) return nTmp.set(1,0,0);
   if(p.z>HZ-.08) return nTmp.set(0,0,-1); if(p.z<-HZ+.08) return nTmp.set(0,0,1);
-  const c=colAt(p.x,p.z,0); if(c){ const dx=p.x-c.x, dz=p.z-c.z; if(Math.abs(dx)>Math.abs(dz)){ p.x=c.x+Math.sign(dx)*c.h; return nTmp.set(Math.sign(dx),0,0);} p.z=c.z+Math.sign(dz)*c.h; return nTmp.set(0,0,Math.sign(dz)); }
+  const sb=SURF[0]; if(inS(sb,p.x,p.z) && p.y>sb.bot-.06 && p.y<sb.top-.05){ p.y=sb.bot-.01; return nTmp.set(0,-1,0); }
+  for(const w of WALLS){ if(p.x>w.x0&&p.x<w.x1&&p.z>w.z0&&p.z<w.z1&&p.y>w.y0&&p.y<w.y1){
+    const ox=Math.min(p.x-w.x0,w.x1-p.x), oz=Math.min(p.z-w.z0,w.z1-p.z), oy=w.y1-p.y;
+    if(oy<ox&&oy<oz){ p.y=w.y1; return nTmp.set(0,1,0); }
+    if(ox<oz){ const r=p.x-w.x0>w.x1-p.x; p.x=r?w.x1:w.x0; return nTmp.set(r?1:-1,0,0); }
+    const f=p.z-w.z0>w.z1-p.z; p.z=f?w.z1:w.z0; return nTmp.set(0,0,f?1:-1); } }
   return null;
 }
 
@@ -474,6 +533,48 @@ const stumpMat=new T.MeshLambertMaterial({color:0xb00018,emissive:0x5a0008});
 const geoCache={};
 function boxGeo(w,h,d){ const k=w.toFixed(3)+'_'+h.toFixed(3)+'_'+d.toFixed(3); return geoCache[k]||(geoCache[k]=new T.BoxGeometry(w,h,d)); }
 const enemyGunGeo=boxGeo(.045,.17,.07);
+const HAIRS=[0x15100c,0x2a1c12,0x0c0c0c,0x5a4632,0x8a8a88];
+// faces: drawn eyes, brows and mouth on a transparent plane over the head's front, swapped per expression
+const FACE_SET={ neutral:['open','flat','smirk'], neutral_blink:['closed','flat','smirk'], angry:['angry','angry','grimace'], angry_blink:['closed','angry','grimace'],
+  pain:['squint','worried','open'], scared:['wide','raised','O'], scream:['wide','angry','scream'], dead:['rolled','flat','slack'] };
+function drawFace([eyes,brows,mouth]){
+  const S=128, cv=document.createElement('canvas'); cv.width=cv.height=S; const g=cv.getContext('2d');
+  g.lineCap='round'; g.lineJoin='round';
+  const L=40, R=88, EY=54, ink='#24160f';
+  const eye=(x,side)=>{
+    g.save();
+    if(eyes==='closed'){ g.strokeStyle=ink; g.lineWidth=4; g.beginPath(); g.moveTo(x-9,EY); g.quadraticCurveTo(x,EY+6,x+9,EY); g.stroke(); g.restore(); return; }
+    if(eyes==='squint'){ g.strokeStyle=ink; g.lineWidth=4; g.beginPath(); g.moveTo(x-9*side,EY-6); g.lineTo(x+7*side,EY); g.lineTo(x-9*side,EY+6); g.stroke(); g.restore(); return; }
+    const rx=eyes==='wide'?11:9, ry=eyes==='wide'?10:eyes==='angry'?6:7;
+    g.beginPath(); g.ellipse(x,EY,rx,ry,0,0,6.29); g.fillStyle='#f2ede4'; g.fill(); g.clip();
+    const py=eyes==='rolled'?EY-8:EY+1, pr=eyes==='wide'?3.2:4.2;
+    g.fillStyle='#1a120e'; g.beginPath(); g.arc(x,py,pr,0,6.29); g.fill();
+    if(eyes==='angry'){ g.fillStyle='rgba(0,0,0,0)'; g.globalCompositeOperation='destination-out'; g.beginPath();
+      g.moveTo(x-14,EY-12); g.lineTo(x+14,EY-12); side<0?g.lineTo(x+14,EY-1):g.lineTo(x-14,EY-1); g.closePath(); g.fillStyle='#000'; g.fill(); }
+    g.restore();
+    g.strokeStyle=ink; g.lineWidth=2.5; g.beginPath(); g.ellipse(x,EY,rx,ry,0,Math.PI*1.05,Math.PI*1.95); g.stroke();
+  };
+  eye(L,1); eye(R,-1);
+  g.strokeStyle=ink; g.lineWidth=5.5;
+  const brow=(x1,y1,x2,y2)=>{ g.beginPath(); g.moveTo(x1,y1); g.lineTo(x2,y2); g.stroke(); };
+  if(brows==='flat'){ brow(L-11,EY-15,L+11,EY-15); brow(R-11,EY-15,R+11,EY-15); }
+  if(brows==='angry'){ brow(L-12,EY-21,L+11,EY-11); brow(R-11,EY-11,R+12,EY-21); }
+  if(brows==='worried'){ brow(L-12,EY-12,L+11,EY-20); brow(R-11,EY-20,R+12,EY-12); }
+  if(brows==='raised'){ g.beginPath(); g.arc(L,EY-12,12,Math.PI*1.15,Math.PI*1.85); g.stroke(); g.beginPath(); g.arc(R,EY-12,12,Math.PI*1.15,Math.PI*1.85); g.stroke(); }
+  const MY=98, dark='#2a0707';
+  g.lineWidth=4.5; g.strokeStyle=ink;
+  if(mouth==='flat'){ g.beginPath(); g.moveTo(50,MY); g.lineTo(78,MY); g.stroke(); }
+  if(mouth==='smirk'){ g.beginPath(); g.moveTo(50,MY+1); g.quadraticCurveTo(66,MY+3,80,MY-5); g.stroke(); }
+  if(mouth==='grimace'){ g.fillStyle=dark; g.fillRect(45,MY-9,38,17); g.fillStyle='#e8e2d4'; g.fillRect(47,MY-7,34,6); g.fillRect(47,MY+1,34,5);
+    g.strokeStyle=dark; g.lineWidth=1.5; for(let x=53;x<80;x+=6){ g.beginPath(); g.moveTo(x,MY-7); g.lineTo(x,MY+6); g.stroke(); } }
+  if(mouth==='open'){ g.fillStyle=dark; g.beginPath(); g.ellipse(64,MY+2,10,8,0,0,6.29); g.fill(); }
+  if(mouth==='O'){ g.fillStyle=dark; g.beginPath(); g.ellipse(64,MY+3,7,10,0,0,6.29); g.fill(); }
+  if(mouth==='scream'){ g.fillStyle=dark; g.beginPath(); g.ellipse(64,MY+3,16,14,0,0,6.29); g.fill(); g.fillStyle='#e8e2d4'; g.fillRect(52,MY-10,24,4); g.fillStyle='#7a1a1a'; g.beginPath(); g.ellipse(64,MY+12,9,4,0,0,6.29); g.fill(); }
+  if(mouth==='slack'){ g.fillStyle=dark; g.beginPath(); g.ellipse(66,MY+3,9,6,.25,0,6.29); g.fill(); }
+  const t=new T.CanvasTexture(cv); t.anisotropy=2; return t;
+}
+const faceGeo=new T.PlaneGeometry(.25,.27);
+const faceMats={}; for(const k in FACE_SET){ const t=drawFace(FACE_SET[k]); faceMats[k]=new T.MeshLambertMaterial({map:t,emissiveMap:t,emissive:0x3a3632,alphaTest:.4}); }
 let enemies=[], hittables=[];
 
 function part(parent,w,h,d,x,y,z,mat,e,name,side){
@@ -486,10 +587,10 @@ function spawnEnemy(kind,dummy){
     walk:0,aim:0,aiming:false,flinch:0,fireT:1.5+Math.random()*1.5,attackT:0,vel:new T.Vector3(),
     mats:{top:lam(def.top),pants:lam(def.pants),skin:lam(SKINS[Math.floor(Math.random()*SKINS.length)])}};
   const g=new T.Group(); e.group=g;
-  if(dummy){ const a=Math.random()*6.28, r=4.5+Math.random()*5; g.position.set(Math.sin(a)*r,0,-Math.cos(a)*r); pushOut(g.position,.35); }
+  if(dummy){ const a=Math.random()*6.28, r=4.5+Math.random()*4; g.position.set(Math.sin(a)*r,0,Math.cos(a)*r*.8); pushOut(g.position,.35,0); }
   else {
-    const far=DOORS.filter(d=>Math.hypot(d.x-headPos.x,d.z-headPos.z)>8); const d=(far.length?far:DOORS)[Math.floor(Math.random()*(far.length||DOORS.length))];
-    g.position.set(d.x,0,d.z); pushOut(g.position,.35); d.flash=1; sfxDoor();
+    const far=DOORS.filter(d=>Math.hypot(d.x-headPos.x,d.z-headPos.z)+Math.abs(d.y-rig.position.y)>8); const pool=far.length?far:DOORS; const d=pool[Math.floor(Math.random()*pool.length)];
+    g.position.set(d.x,d.y,d.z); pushOut(g.position,.35,d.y); d.flash=1; sfxDoor();
   }
   const inner=new T.Group(); inner.scale.setScalar(def.scale); g.add(inner);
   const M=e.mats;
@@ -500,8 +601,12 @@ function spawnEnemy(kind,dummy){
   const armR=new T.Group(); armR.position.set(.36,.6,0); torso.add(armR); part(armR,.13,.6,.15,0,-.3,0,M.top,e,'arm','R');
   const handL=new T.Mesh(boxGeo(.1,.1,.1),M.skin); handL.position.y=-.64; armL.add(handL);
   const handR=new T.Mesh(boxGeo(.1,.1,.1),M.skin); handR.position.y=-.64; armR.add(handR);
-  const head=new T.Group(); head.position.y=.68; torso.add(head); part(head,.27,.29,.27,0,.145,0,M.skin,e,'head','');
-  const glasses=new T.Mesh(boxGeo(.29,.07,.04),glassesMat); glasses.position.set(0,.17,.135); head.add(glasses);
+  const head=new T.Group(); head.position.y=.68; torso.add(head); const headMesh=part(head,.27,.29,.27,0,.145,0,M.skin,e,'head','');
+  e.shades=kind==='heavy'||Math.random()<.15; e.hair=Math.random()<.65?HAIRS[Math.floor(Math.random()*HAIRS.length)]:null;
+  if(e.shades){ const glasses=new T.Mesh(boxGeo(.29,.07,.04),glassesMat); glasses.position.set(0,.025,.138); headMesh.add(glasses); }
+  if(e.hair){ const h=new T.Mesh(boxGeo(.285,.07,.285),lam(e.hair)); h.position.y=.16; headMesh.add(h); }
+  const face=new T.Mesh(faceGeo,faceMats.neutral); face.position.set(0,0,.1365); headMesh.add(face);
+  Object.assign(e,{face,expr:'neutral',blinkT:1+Math.random()*3,scaredT:0,los:false,losT:Math.random()*.3});
   let muzzle=null, glint=null;
   if(kind!=='rusher'){
     const gun=new T.Mesh(enemyGunGeo,gunMat); gun.position.set(0,-.72,.02); armR.add(gun);
@@ -524,27 +629,52 @@ function removeEnemy(e){
 function clearEnemies(){ enemies.slice().forEach(removeEnemy); }
 function spawnDummies(){ clearEnemies(); ['shooter','rusher','heavy','shooter','shooter'].forEach(k=>spawnEnemy(k,true)); }
 
+const eyeV=new T.Vector3(), goalV=new T.Vector3();
+function navGoal(p,feet){
+  const up=feet>p.y, ri=rampIdx(p.x,p.z);
+  if(ri){ const st=STAIRS[ri-1]; return up?st.top:st.bot; }
+  let best=null, bd=1e9;
+  STAIRS.forEach(st=>{ const entry=up?st.bot:st.top, exit=up?st.top:st.bot;
+    const d=Math.hypot(entry.x-p.x,entry.z-p.z)+Math.hypot(exit.x-headPos.x,exit.z-headPos.z); if(d<bd){ bd=d; best=st; } });
+  // standing in front of the stairs: commit to stepping onto them; otherwise walk to the front first
+  const near=Math.abs(p.x-best.x)<1.3;
+  if(up) return (near && p.z>RAMP_LO-.1 && p.z<RAMP_LO+1.8)?best.botIn:best.bot;
+  return (near && p.z<BAL_Z+.1 && p.z>BAL_Z-1.8)?best.topIn:best.top;
+}
+function setExpr(e,ex){ if(ex!==e.expr){ e.expr=ex; e.face.material=faceMats[ex]; } }
 function updateEnemy(e,dt){
   e.age+=dt;
-  const p=e.group.position, ox=p.x, oz=p.z;
+  const p=e.group.position, ox=p.x, oz=p.z, feet=rig.position.y, s=e.def.scale;
   const dx=headPos.x-p.x, dz=headPos.z-p.z, dist=Math.max(.01,Math.hypot(dx,dz));
-  e.group.rotation.y=Math.atan2(dx,dz);
   const active=!e.dummy && state==='playing';
-  let moving=false;
+  // same floor, or both on the same stair run: chase directly. Otherwise path through the nearest stairs.
+  const pr=rampIdx(headPos.x,headPos.z), er=rampIdx(p.x,p.z);
+  const direct=Math.abs(p.y-feet)<.6 || (pr && pr===er);
+  const goal=direct?headPos:navGoal(p,feet);
+  const gx=goal.x-p.x, gz=goal.z-p.z, gd=Math.max(.01,Math.hypot(gx,gz));
+  e.losT-=dt;
+  if(e.losT<=0){ e.losT=.3; eyeV.set(p.x,p.y+1.62*s,p.z); e.los=canSee(eyeV,headPos); }
+  const d3=Math.hypot(dist,headPos.y-(p.y+1.6*s));
+  let moving=false, mx=0, mz=0;
   if(active){
-    const los=!blocked(p.x,p.z,headPos.x,headPos.z);
     if(e.kind==='rusher'){
-      if(dist>.85){ const sp=e.def.speed*(1+wave*.04); p.x+=dx/dist*sp*dt; p.z+=dz/dist*sp*dt; moving=true; }
-      else { e.attackT-=dt; if(e.attackT<=0){ e.attackT=1.1; e.swing=1; sfxSwing(); setTimeout(()=>{ if(e.alive && state==='playing' && e.group.position.distanceTo(vA.set(headPos.x,0,headPos.z))<1.1) hurtPlayer(); },180); } }
-    } else if(dist>e.stop || !los){ p.x+=dx/dist*e.def.speed*dt; p.z+=dz/dist*e.def.speed*dt; moving=true; if(!los){ p.x+=-dz/dist*.6*dt*Math.sign(Math.sin(e.strafe)||1); p.z+=dx/dist*.6*dt*Math.sign(Math.sin(e.strafe)||1); } }
-    else { e.strafe+=dt*.7; const side=Math.cos(e.strafe)*.55*dt; p.x+=-dz/dist*side; p.z+=dx/dist*side; }
-    pushOut(p,.35);
-    if(e.def.fire && e.age>1.2 && los && dist<e.stop+2){
+      if(!(direct && d3<1.05)){ const sp=e.def.speed*(1+wave*.04); mx=gx/gd*sp*dt; mz=gz/gd*sp*dt; moving=true; }
+      else { e.attackT-=dt; if(e.attackT<=0){ e.attackT=1.1; e.swing=1; sfxSwing(); setTimeout(()=>{ if(e.alive && state==='playing' && Math.hypot(headPos.x-e.group.position.x,headPos.z-e.group.position.z)<1.15 && Math.abs(rig.position.y-e.group.position.y)<.7) hurtPlayer(); },180); } }
+    } else {
+      const inPos=e.los && d3<=e.stop+(direct?0:5);
+      if(!inPos){ const sp=e.def.speed; mx=gx/gd*sp*dt; mz=gz/gd*sp*dt; moving=true;
+        if(direct && !e.los){ const sd=Math.sign(Math.sin(e.strafe))||1; mx+=-gz/gd*.6*dt*sd; mz+=gx/gd*.6*dt*sd; } }
+      else { e.strafe+=dt*.7; const side=Math.cos(e.strafe)*.55*dt; mx=-dz/dist*side; mz=dx/dist*side; }
+    }
+    moveEntity(p,mx,mz,.35,p.y);
+    if(e.def.fire && e.age>1.2 && e.los && d3<e.stop+6){
       e.fireT-=dt;
       if(e.fireT<.55) e.aiming=true;
       if(e.fireT<=0){ enemyShoot(e); e.aiming=false; e.fireT=Math.max(1.3,e.def.fire-wave*.12)*(.8+Math.random()*.5); }
     } else e.aiming=false;
   }
+  const gy=groundAt(p.x,p.z,p.y); p.y+=(gy-p.y)*Math.min(1,dt*12);
+  e.group.rotation.y=(moving&&!direct)?Math.atan2(gx,gz):Math.atan2(dx,dz);
   if(dt>0) e.vel.set((p.x-ox)/dt,0,(p.z-oz)/dt);
   e.flinch=Math.max(0,e.flinch-dt*4);
   e.swing=Math.max(0,(e.swing||0)-dt*3);
@@ -563,6 +693,16 @@ function updateEnemy(e,dt){
   }
   e.torso.rotation.x=-e.flinch*.5;
   if(e.glint){ e.glint.visible=e.aiming; if(e.aiming) e.glint.scale.setScalar(.2+Math.abs(Math.sin(tAll*30))*.25); }
+  // expression
+  e.scaredT-=dt; e.blinkT-=dt; if(e.blinkT<=-.12) e.blinkT=2+Math.random()*3.5;
+  let ex;
+  if(e.flinch>.25) ex='pain';
+  else if(e.scaredT>0) ex='scared';
+  else if(e.kind==='rusher' && moving && active) ex='scream';
+  else if(active && (e.aiming||e.los)) ex='angry';
+  else ex='neutral';
+  if((ex==='neutral'||ex==='angry') && e.blinkT<0) ex+='_blink';
+  setExpr(e,ex);
 }
 
 /* ---------- ragdolls (verlet) ---------- */
@@ -593,7 +733,10 @@ function makeRagdoll(e,hitPoint,dir,partName,side,force){
     const len=pts[a].c.distanceTo(pts[b].c);
     const m=new T.Mesh(boxGeo(w*s,Math.max(.05,len),d*s),e.mats[mk]); g.add(m);
     m.userData={rag:r,part:pn,side:sd};
-    if(pn==='head'){ const gl=new T.Mesh(boxGeo(.29*s,.07*s,.04*s),glassesMat); gl.position.set(0,.03*s,.135*s); m.add(gl); }
+    if(pn==='head'){
+      if(e.shades){ const gl=new T.Mesh(boxGeo(.29*s,.07*s,.04*s),glassesMat); gl.position.set(0,.03*s,.138*s); m.add(gl); }
+      if(e.hair){ const h=new T.Mesh(boxGeo(.285*s,.07*s,.285*s),lam(e.hair)); h.position.y=.165*s; m.add(h); }
+      const f=new T.Mesh(faceGeo,faceMats.dead); f.scale.setScalar(s); f.position.set(0,.005*s,.1365*s); m.add(f); }
     if(a===7&&b===8){ const hd=new T.Mesh(boxGeo(.1*s,.1*s,.1*s),e.mats.skin); hd.position.y=len/2+.03; m.add(hd);
       if(e.kind!=='rusher'){ const gn=new T.Mesh(enemyGunGeo,gunMat); gn.position.y=len/2+.12; m.add(gn); } }
     if(a===4&&b===5){ const hd=new T.Mesh(boxGeo(.1*s,.1*s,.1*s),e.mats.skin); hd.position.y=len/2+.03; m.add(hd); }
@@ -649,8 +792,9 @@ function stepRag(r){
       if(c.min && d>=c.rest) continue;
       const f=(d-c.rest)/d*.5; a.x+=dx*f; a.y+=dy*f; a.z+=dz*f; b.x-=dx*f; b.y-=dy*f; b.z-=dz*f; }
     for(let i=0;i<P.length;i++){ const p=P[i];
-      if(p.c.y<.06){ p.c.y=.06; p.o.x=p.c.x-(p.c.x-p.o.x)*.55; p.o.z=p.c.z-(p.c.z-p.o.z)*.55; }
-      pushOut(p.c,.06); }
+      const gy=groundAt(p.c.x,p.c.z,p.c.y)+.06;
+      if(p.c.y<gy){ p.c.y=gy; p.o.x=p.c.x-(p.c.x-p.o.x)*.55; p.o.z=p.c.z-(p.c.z-p.o.z)*.55; }
+      pushOut(p.c,.06,p.c.y,0); }
   }
 }
 function orient(m,a,b,rightRef){
@@ -733,13 +877,6 @@ function fireGun(gun,origin,dir,hand){
     else if(ud.proj) deflect(ud.proj);
     else if(ud.enemy && ud.enemy.alive) hitEnemy(ud.enemy,ud.part,ud.side,h.point,dir);
     else if(ud.rag) hitCorpse(ud.rag,ud.part,ud.side,h.point,dir);
-  } else {
-    const ts=[ dir.y<0?-origin.y/dir.y:Infinity, dir.y>0?(CEIL-origin.y)/dir.y:Infinity,
-      dir.x?((dir.x>0?HX:-HX)-origin.x)/dir.x:Infinity, dir.z?((dir.z>0?HZ:-HZ)-origin.z)/dir.z:Infinity ].filter(v=>v>0);
-    const t=Math.min(...ts);
-    if(isFinite(t)){ end.copy(origin).addScaledVector(dir,t);
-      const n=end.y<.05?new T.Vector3(0,1,0):end.y>CEIL-.05?new T.Vector3(0,-1,0):Math.abs(Math.abs(end.x)-HX)<.05?new T.Vector3(-Math.sign(end.x),0,0):new T.Vector3(0,0,-Math.sign(end.z));
-      decal(end,n,.07,0,'hole'); sparkBurst(end,5,true); }
   }
   tracer(vB,end);
   syncPips(); hudDirty=true;
@@ -756,7 +893,7 @@ function hitEnemy(e,partName,side,point,dir){
   e.hp-=head?99:1;
   wound(point,dir,head);
   if(e.hp<=0){ killEnemy(e,point,dir,partName,side); return; }
-  e.flinch=1; e.group.position.addScaledVector(vA.set(dir.x,0,dir.z).normalize(),.22); pushOut(e.group.position,.35);
+  e.flinch=1; vA.set(dir.x,0,dir.z).normalize(); moveEntity(e.group.position,vA.x*.22,vA.z*.22,.35,e.group.position.y);
   score+=10*mult(); hudDirty=true;
 }
 const STREAK_NAMES={2:'DOUBLE',3:'TRIPLE',5:'RAMPAGE',8:'MASSACRE',12:'BLOODBATH'};
@@ -767,6 +904,7 @@ function killEnemy(e,point,dir,partName,side){
   popup(point.clone().add(new T.Vector3(0,.25,0)), head?'HEADSHOT':'+'+pts, head?'+'+pts:'', head?'#e9e7e2':'#bdbab3', 1, 1.1);
   if(STREAK_NAMES[streak]){ popupFront(STREAK_NAMES[streak],'×'+mult(),'#e0162b',1.3,1.4); sfxStreak(); }
   const force=head?5:(e.kind==='heavy'?4:6.5);
+  enemies.forEach(o=>{ if(o!==e && !o.dummy && o.kind!=='heavy' && o.group.position.distanceTo(e.group.position)<6) o.scaredT=1.4+Math.random()*.6; });
   removeEnemy(e);
   makeRagdoll(e,point,dir,partName,side,force);
   sfxThud();
@@ -808,7 +946,7 @@ function startGame(){
 }
 function nextWave(){
   wave++; toSpawn=3+wave*2; spawnT=1.6; state='playing'; hudDirty=true;
-  popupFront('WAVE '+wave, wave===1?'THEY ARE COMING THROUGH THE DOORS':'', '#e9e7e2', 1.6, 2.2);
+  popupFront('WAVE '+wave, wave===1?'BOTH FLOORS. WATCH THE BALCONY':'', '#e9e7e2', 1.6, 2.2);
 }
 function checkWaveClear(){
   if(state!=='playing'||toSpawn>0||enemies.some(e=>!e.dummy)) return;
@@ -864,7 +1002,7 @@ const keys={};
 const fwd=new T.Vector3(), rgt=new T.Vector3(), mv=new T.Vector3(), headAfter=new T.Vector3();
 let snapReady=true;
 function moveRig(dx,dz){
-  headAfter.set(headPos.x+dx,0,headPos.z+dz); pushOut(headAfter,.3);
+  headAfter.set(headPos.x,0,headPos.z); moveEntity(headAfter,dx,dz,.3,rig.position.y);
   rig.position.x+=headAfter.x-headPos.x; rig.position.z+=headAfter.z-headPos.z;
   headPos.x=headAfter.x; headPos.z=headAfter.z;
 }
@@ -888,6 +1026,7 @@ function locomotion(realDt){
   const sp=renderer.xr.isPresenting?2.6:3.6;
   mv.copy(fwd).multiplyScalar(-ly).addScaledVector(rgt,lx); const m=Math.min(1,mv.length());
   if(m>0){ mv.normalize().multiplyScalar(m*sp*realDt); moveRig(mv.x,mv.z); }
+  const gy=groundAt(headPos.x,headPos.z,rig.position.y); rig.position.y+=(gy-rig.position.y)*Math.min(1,realDt*12);
   moveAmt+=(m-moveAmt)*Math.min(1,realDt*8);
   tunnel.visible=renderer.xr.isPresenting && moveAmt>.02; tunnel.material.opacity=moveAmt*.9;
 }
@@ -1008,13 +1147,13 @@ function loop(){
     projectiles.slice().forEach(pr=>{
       pr.m.position.addScaledVector(pr.v,dt); pr.life-=dt;
       const p=pr.m.position;
-      if(colAt(p.x,p.z,0)||Math.abs(p.x)>HX||Math.abs(p.z)>HZ){ const n=surfaceNormal(p.clone()); if(n) decal(p,n.clone(),.06,0,'hole'); sparkBurst(p,5,true); removeProj(pr); return; }
+      if(solidAt(p.x,p.y,p.z)){ const q=p.clone(), n=surfaceNormal(q); if(n) decal(q,n.clone(),.06,0,'hole'); sparkBurst(p,5,true); removeProj(pr); return; }
       const d=p.distanceTo(headPos);
       if(d<.2){ hurtPlayer(); removeProj(pr); return; }
       pr.minD=Math.min(pr.minD,d);
       if(!pr.passed && d>pr.prevD+.001 && pr.minD<2){ pr.passed=true; if(pr.minD<.55) nearMiss(pr); }
       pr.prevD=d;
-      if(pr.life<=0||p.y<0) removeProj(pr);
+      if(pr.life<=0) removeProj(pr);
     });
     updateBlood(dt);
   }

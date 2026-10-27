@@ -1,6 +1,6 @@
 # Last Call VR
 
-A gory wave shooter for Meta Quest 3, set in a brutalist concrete techno club, built with WebXR and three.js. Free movement around a pillared hall, dual pistols, verlet ragdolls, headshots that take heads off, severable limbs, blood on floors and walls, bullet holes, kill streaks and slow-mo.
+A gory wave shooter for Meta Quest 3, set in a brutalist concrete techno club, built with WebXR and three.js. Two floors (main hall plus a balcony reached by side stairs), free movement around a pillared hall, thugs with facial expressions that react to what's happening, dual pistols, verlet ragdolls, headshots that take heads off, severable limbs, blood on floors and walls, bullet holes, kill streaks and slow-mo.
 
 **Play:** https://kungfukennyog.github.io/last-call-vr/ in the Quest browser, then hit **Enter VR**.
 
@@ -16,7 +16,7 @@ A gory wave shooter for Meta Quest 3, set in a brutalist concrete techno club, b
 | Shoot a tracer | Deflect it |
 | Left gun wrist screen | Wave, score, streak, HP |
 
-Pillars block bullets both ways. Enemies come through the doors around the hall, including behind you.
+Pillars block bullets both ways. Enemies come through doors on both floors, path up and down the stairs to reach you, and shoot between floors when they can see you.
 
 Browser mode (no headset): `WASD` to move, click to lock aim, mouse to look, click to shoot, `R` to reload.
 
