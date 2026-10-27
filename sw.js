@@ -1,5 +1,5 @@
 // Caches the game shell and three.js so the installed app keeps working offline after the first launch.
-const CACHE = 'last-call-v14';
+const CACHE = 'last-call-v15';
 const SHELL = [
   './',
   './index.html',
@@ -28,8 +28,8 @@ self.addEventListener('fetch', e => {
   if (isPage) {
     e.respondWith(
       fetch(e.request)
-        .then(r => { const copy = r.clone(); caches.open(CACHE).then(c => c.put('./index.html', copy)); return r; })
-        .catch(() => caches.match('./index.html'))
+        .then(r => { const copy = r.clone(); caches.open(CACHE).then(c => c.put(e.request, copy)); return r; })
+        .catch(() => caches.match(e.request).then(r => r || caches.match('./index.html')))
     );
     return;
   }

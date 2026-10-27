@@ -40,6 +40,35 @@ Bullet time slows everything to about a quarter speed for up to five seconds, yo
 
 Browser mode (no headset): `WASD` to move, `Space` jump, `Shift` dash, `C` slide, `E` bullet time, click to lock aim, mouse to look, click to shoot (hold for full-auto), walk over a weapon to pick it up, `F` or right-click to melee, `R` to reload.
 
+## Showdowns
+
+**Play:** https://kungfukennyog.github.io/last-call-vr/campaign/
+
+Five short themed levels, three to five minutes each, with slower, Max Payne-style movement: you walk (no jumping or dashing), dive sideways in slow motion, and use bullet time. Enemies stand around, smoke and patrol until they see or hear you. Doors open when you walk into them and knock down whoever's behind. Each level ends with a boss and a rating.
+
+| | Level | Setting |
+|---|---|---|
+| 1 | Snowblind | New York, 1948. A snowy alley into the Hotel Marlowe; Dutch Hollander comes down in the elevator. Cello noir score. |
+| 2 | Teahouse | Hong Kong, 1992. Round tables, birdcages, doves that burst into the air when the shooting starts, a kitchen ambush with cleavers, Mr. Lau on the gallery. |
+| 3 | No Man's Town | The front, 1944. A bombed village square at dusk: sandbags, a burning truck, grenades, artillery (watch for the red rings), a machine gun in the church window. Generic army, no insignia. |
+| 4 | Gang Wars | Chicago, 1929. Behind a barbershop, two mobs are already shooting at each other in a speakeasy; they'll shoot you too. Big Sal and his Tommy gun wait in the warehouse. Hot jazz. |
+| 5 | Morro | Rio de Janeiro, 2009. Up the stair alleys of a hillside favela with snipers on the roofs (watch for their red lasers) to the football court at the top. Baile funk. |
+
+| Input | Action |
+|---|---|
+| Trigger | Fire (hold for full-auto with the Uzi / Tommy gun) |
+| Left stick | Walk |
+| Right stick | Snap turn 30° |
+| A or X | Slow-motion dive (sideways, or the way you're pushing the stick) |
+| Y, or click the right stick | Bullet time |
+| B, or grip with nothing in reach | Throw the gun in your hand (stuns; aims itself a little) |
+| Grip near a weapon | Pick it up |
+| Point a gun at the floor | Reload |
+
+Browser: `WASD` walk, `Space` dive, `E` bullet time, `G` throw, `F` melee, `R` reload, `Enter` to continue.
+
+The Uzi and the sawed-off (in both games) show their remaining rounds on a small counter on top of the gun; the sawed-off also has two shell lights for its barrels, and the wrist screen shows the count.
+
 ## Install on the Quest
 
 **Easiest:** open the Play link in the Quest browser and tap **Install** in the address bar. It lands in your app library.

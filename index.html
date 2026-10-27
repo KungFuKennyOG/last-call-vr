@@ -88,6 +88,7 @@ body.miami dl.how{border-left-color:#22e6ff}
       <button id="musicBtn" class="ghost" type="button">Music: on</button>
     </div>
     <p class="note" id="vrNote">Checking for a headset…</p>
+    <p class="note"><a href="https://kungfukennyog.github.io/last-call-vr/campaign/" style="color:var(--ink)">Showdowns</a>: five short story levels with a slow-mo dive. Noir New York, a Hong Kong teahouse, a war-torn village, 1929 Chicago, a favela.</p>
     <dl class="how">
       <dt>Trigger</dt><dd>Fire. One pistol per hand.</dd>
       <dt>Move</dt><dd>Left stick runs, click it to walk. Y (or click the right stick) is bullet time. A jumps (again in mid-air), B or X dashes. Right stick snap-turns. Kills in the air or mid-dash score ×1.5.</dd>
@@ -983,6 +984,27 @@ const wristTex=new T.CanvasTexture(wristCv);
 const guns={left:makeGun(RED,true), right:makeGun(WHITE,false)};
 const deskGun=makeGun(WHITE,false); deskGun.root.position.set(.15,-.15,-.42); deskGun.root.rotation.y=.06; deskGun.root.visible=false; camera.add(deskGun.root);
 const allGuns=[guns.left,guns.right,deskGun];
+/* ---------- ammo you can read in VR: a counter on the Uzi and the sawed-off, shell lights on the sawed-off ---------- */
+function addAmmoDisplay(g){
+  const cv=document.createElement('canvas'); cv.width=96; cv.height=48; const tex=new T.CanvasTexture(cv);
+  const scr=new T.Mesh(new T.PlaneGeometry(.05,.025),new T.MeshBasicMaterial({map:tex,transparent:true,fog:false}));
+  scr.rotation.x=-1.05; scr.visible=false; g.body.add(scr);
+  const shells=[-.017,.017].map(x=>{ const m=new T.Mesh(new T.BoxGeometry(.012,.006,.02),new T.MeshBasicMaterial({color:0xff3a2a})); m.position.set(x,.046,.0); m.visible=false; g.body.add(m); return m; });
+  g.cnt={cv,tex,scr,shells,last:-1};
+}
+function drawCount(g){
+  const c=g.cnt; if(!c) return; const sp=g.weapon!=='pistol'; c.scr.visible=sp; c.shells.forEach(m=>m.visible=g.weapon==='shotgun');
+  if(!sp) return;
+  if(g.weapon==='mg') c.scr.position.set(0,.078,.04); else c.scr.position.set(0,.05,.045);
+  if(g.weapon==='shotgun'){ const loaded=Math.min(g.wAmmo,(g.barrel||0)%2===0?2:1); c.shells.forEach((m,i)=>m.material.color.setHex(i<loaded?0xff3a2a:0x2a0806)); }
+  if(c.last===g.wAmmo) return; c.last=g.wAmmo;
+  const x=c.cv.getContext('2d'), low=g.wAmmo<=Math.ceil(WEAPONS[g.weapon].ammo*.2);
+  x.clearRect(0,0,96,48); x.fillStyle='rgba(6,6,6,.85)'; x.fillRect(0,0,96,48);
+  x.fillStyle=low?'#ff3a2a':'#f2efe8'; x.font="900 40px 'Big Shoulders Display', Impact, sans-serif"; x.textAlign='center'; x.textBaseline='middle'; x.fillText(String(g.wAmmo),48,26);
+  c.tex.needsUpdate=true;
+}
+
+allGuns.forEach(addAmmoDisplay);
 function syncPips(){ allGuns.forEach(g=>{ const n=g.weapon==='pistol'||!g.weapon?g.ammo:Math.ceil(g.wAmmo/WEAPONS[g.weapon].ammo*MAG); g.ammoPips.forEach((p,i)=>p.visible=i<n); g.hpPips.forEach((p,i)=>p.visible=i<hp); }); }
 
 const tO=new T.Vector3(), tD=new T.Vector3(), tQ=new T.Quaternion();
@@ -1688,6 +1710,7 @@ function fireGun(gun,origin,dir,hand){
   }
   forceMul=1;
   if(gun.weapon==='shotgun'){ gun.barrel=(gun.barrel||0)+1; if(gun.barrel%2===0 && gun.wAmmo>0){ gun.cool=frenzyT>0?.45:.9; setTimeout(sfxBreak,120); } }
+  hudDirty=true;
   if(gun.weapon!=='pistol' && gun.wAmmo<=0){ gun.muzzle.getWorldPosition(vA); popup(vA.clone().add(new T.Vector3(0,.15,0)),'EMPTY','','#e9e7e2',.55,.9); sfxEmpty(); setWeapon(gun,'pistol'); }
   syncPips(); hudDirty=true;
 }
@@ -1902,7 +1925,7 @@ function drawHud(){
     g.fillText(String(wave).padStart(2,'0'),22,96); g.fillText(score.toLocaleString(),110,96);
     g.fillStyle=mult()>1?ACCS:'#5a5852'; g.fillText('×'+mult(),280,96);
     for(let i=0;i<MAX_HP;i++){ g.fillStyle=i<hp?ACCS:'#2a2928'; g.fillRect(22+i*30,122,22,22); }
-    g.fillStyle='#8a8780'; g.font=`600 16px ${MONO}`; g.fillText(kills+' DOWN',190,141);
+    const sw=[guns.left,guns.right,deskGun].find(x=>x.weapon!=='pistol'); g.fillStyle=sw?'#e9e7e2':'#8a8780'; g.font=sw?`900 24px ${DISPLAY}`:`600 16px ${MONO}`; g.fillText(sw?WEAPONS[sw.weapon].name+' '+sw.wAmmo:kills+' DOWN',190,sw?144:141);
     for(let i=0;i<2;i++){ g.fillStyle=i<dashCharges?'#e9e7e2':'#2a2928'; g.fillRect(300+i*26,126,18,14); }
     g.fillStyle='#2a2928'; g.fillRect(22,160,330,10); g.fillStyle=btActive?'#9db8ff':'#5f7fb0'; g.fillRect(22,160,330*btMeter,10);
     if(state==='over'){ g.fillStyle='rgba(8,8,8,.9)'; g.fillRect(6,0,W,H); g.fillStyle=ACCS; g.font=`900 60px ${DISPLAY}`; g.fillText('LAST CALL',22,82);
@@ -2109,7 +2132,8 @@ addEventListener('resize',()=>{ if(renderer.xr.isPresenting) return; camera.aspe
 
 /* ---------- loop ---------- */
 const clock=new T.Clock(); let tAll=0;
-function loop(){
+function loop(){ try{ frame(); }catch(err){ if(!loop.errs) loop.errs=0; if(loop.errs++<5) console.error(err); } }
+function frame(){
   const realDt=Math.min(clock.getDelta(),.05); tAll+=realDt;
   scheduleMusic();
 
@@ -2149,7 +2173,7 @@ function loop(){
     g.meleeCd-=realDt; g.whip=Math.max(0,g.whip-realDt*5);
     g.body.rotation.x=g.kick*.45+g.spin-Math.sin(g.whip*Math.PI)*1.1; g.body.position.z=.06+g.kick*.03-Math.sin(g.whip*Math.PI)*.12; g.body.position.x=-Math.sin(g.whip*Math.PI)*.12;
     g.flashT-=realDt; g.flash.visible=g.flashT>0; if(g.flash.visible) g.flash.material.rotation=Math.random()*6;
-    g.laser.visible=g.spin<=0;
+    g.laser.visible=g.spin<=0; drawCount(g);
   });
   if(renderer.xr.isPresenting){
     controllers.forEach(c=>{ const g=c.userData.gun; if(!g) return; tD.set(0,0,-1).applyQuaternion(c.getWorldQuaternion(tQ)); if(tD.y<-.8) reload(g,c.userData.hand);
