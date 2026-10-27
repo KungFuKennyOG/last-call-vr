@@ -58,7 +58,6 @@ dl.how dd{margin:0;min-width:0;color:var(--muted)}
 </head>
 <body>
 
-
 <canvas id="c"></canvas>
 
 <div id="overlay">
@@ -908,6 +907,59 @@ function navGoal(p,feet){
   if(up) return (near && p.z>RAMP_LO-.1 && p.z<RAMP_LO+1.8)?best.botIn:best.bot;
   return (near && p.z<BAL_Z+.1 && p.z>BAL_Z-1.8)?best.topIn:best.top;
 }
+// squads: fan out of the door, then each member plays a role instead of filing after the leader
+const angD=(a,b)=>{ let d=(a-b)%(Math.PI*2); if(d>Math.PI) d-=Math.PI*2; if(d<-Math.PI) d+=Math.PI*2; return d; };
+const tgtOk=(x,z)=>Math.abs(x)<HX-.7 && Math.abs(z)<HZ-.7 && !solidAt(x,.6,z) && !solidAt(x+.3,.6,z) && !solidAt(x-.3,.6,z) && !solidAt(x,.6,z+.3) && !solidAt(x,.6,z-.3);
+function orbitTgt(t,b,R){ for(const k of [1,.75,.5]) for(const db of [0,.35,-.35,.7,-.7]){ const bb=b+db, r=Math.max(2.2,R*k), x=headPos.x+Math.sin(bb)*r, z=headPos.z+Math.cos(bb)*r;
+    if(tgtOk(x,z)) return t.set(x,0,z); } return null; }
+function doorNormal(d){ return Math.abs(d.x)>=HX-1?[-Math.sign(d.x),0,0,1]:[0,-Math.sign(d.z),1,0]; }
+function spawnSquad(kinds,door){
+  const d=door||pickDoor(), n=kinds.length;
+  // later waves: half the squad comes through a second door on the far side (pincer)
+  let d2=null;
+  if(n>=2 && wave>=3 && Math.random()<.3){ const opts=DOORS.filter(o=>o!==d && Math.abs(o.y-d.y)<1 && Math.hypot(o.x-d.x,o.z-d.z)>9 && Math.hypot(o.x-headPos.x,o.z-headPos.z)>5); if(opts.length) d2=opts[Math.floor(Math.random()*opts.length)]; }
+  const sq={members:[],phase:0,phaseT:2.2,lastT:-1,entryB:Math.atan2(d.x-headPos.x,d.z-headPos.z),split:!!d2};
+  const ms=kinds.map((k,i)=>{ const dd=(d2&&i%2)?d2:d, e=spawnEnemy(k,false,dd); e.sq=sq; sq.members.push(e); e.door=dd; return e; });
+  const gun=ms.filter(e=>e.kind!=='rusher'), rush=ms.filter(e=>e.kind==='rusher');
+  const SIDES={1:[Math.random()<.5?1:-1],2:[1,-1],3:[0,1,-1]};
+  gun.forEach((e,i)=>{ e.role='gun'; e.side=SIDES[gun.length][i]; e.sqIdx=i; e.hop=0; });
+  // a gunman in a three-man squad may peel off to the balcony and shoot down at you
+  if(n===3 && wave>=2 && rig.position.y<1 && Math.random()<.55){ const o=gun.find(e=>e.kind!=='heavy' && e.side===0) || gun.find(e=>e.kind!=='heavy'); if(o){ o.role='over'; o.stop=8+Math.random()*3; } }
+  rush.forEach((e,i)=>{ e.role='rush'; e.side=sq.split?0:SIDES[rush.length][i]; if(rush.length===1 && gun.length) e.side=-(gun[0].side||1); });
+  // staggered wedge out of each doorway
+  [d,d2].forEach(dd=>{ if(!dd) return; const grp=ms.filter(e=>e.door===dd), [nx,nz,lx,lz]=doorNormal(dd);
+    grp.forEach((e,i)=>{ const lat=(i-(grp.length-1)/2)*2.3, fw=2.4+Math.abs(lat)*.25; e.fan=new T.Vector3(dd.x+nx*fw+lx*lat,dd.y,dd.z+nz*fw+lz*lat); pushOut(e.fan,.45,dd.y); e.fanT=1.3; }); });
+  return ms;
+}
+function squadGoal(e,p,feet,dist,dt){
+  const sq=e.sq, t=e.tgt||(e.tgt=new T.Vector3());
+  if(sq.lastT!==tAll){ sq.lastT=tAll; sq.phaseT-=dt;
+    if(sq.phaseT<=0){ sq.phaseT=1.8+Math.random()*1.2; sq.phase^=1;
+      sq.members.forEach(m=>{ if(m.role==='gun' && (m.sqIdx%2)===sq.phase) m.hop=Math.max(-1.2,Math.min(1.2,m.hop+(Math.random()<.5?-1:1)*(.45+Math.random()*.4))); }); } }
+  e.moveTurn=e.role==='gun' && (e.sqIdx%2)===sq.phase && sq.members.some(m=>m!==e && m.alive && !m.downed && m.role!=='rush');
+  if(e.fanT>0){ e.fanT-=dt; if(Math.abs(e.fan.y-p.y)<.6 && Math.hypot(e.fan.x-p.x,e.fan.z-p.z)>.5){ e.spotD=9; return e.fan; } e.fanT=0; }
+  const ground=p.y<1 && feet<1 && !rampIdx(p.x,p.z);
+  if(e.role==='over'){
+    if(feet>1) return null;                       // you went up there yourself: just come for you
+    if(p.y<UP_Y-.3) return navGoal(p,UP_Y+1);     // head for the stairs
+    t.set(Math.max(-7,Math.min(7,headPos.x*.8)),UP_Y,BAL_Z-.8); e.spotD=Math.hypot(t.x-p.x,t.z-p.z); return t;
+  }
+  if(!ground) return null;
+  const cur=Math.atan2(p.x-headPos.x,p.z-headPos.z);
+  if(e.role==='rush'){
+    // pincer: swing round to its side, then cut straight in
+    if(!e.side || dist<3.6) return null;
+    const df=angD(sq.entryB+e.side*1.2,cur); if(Math.abs(df)<.3){ e.side=0; return null; }
+    return orbitTgt(t,cur+Math.max(-.85,Math.min(.85,df)),Math.max(3.2,dist-1.4));
+  }
+  const yaw=Math.atan2(headDir.x,headDir.z);
+  const want=(e.side?yaw+e.side*1.75:cur)+e.hop, df=angD(want,cur);
+  const r=orbitTgt(t,cur+Math.max(-.7,Math.min(.7,df)),e.stop+(e.side?.5:0));
+  e.spotD=r?Math.hypot(t.x-p.x,t.z-p.z):9;
+  // got to the spot and still can't see you: stop being clever
+  if(r && e.spotD<.6 && !e.los) return null;
+  return r;
+}
 function setExpr(e,ex){ if(ex!==e.expr){ e.expr=ex; e.face.material=faceMats[ex]; } }
 function updateEnemy(e,dt){
   e.age+=dt;
@@ -918,7 +970,9 @@ function updateEnemy(e,dt){
   // same floor, or both on the same stair run: chase directly. Otherwise path through the nearest stairs.
   const pr=rampIdx(headPos.x,headPos.z), er=rampIdx(p.x,p.z);
   const direct=Math.abs(p.y-feet)<.6 || (pr && pr===er);
-  const goal0=direct?headPos:navGoal(p,feet);
+  let goal0=direct?headPos:navGoal(p,feet);
+  const tac=(active && e.sq)?squadGoal(e,p,feet,dist,dt):null; e.sqT=!!tac && !(e.fanT>0);
+  if(tac) goal0=tac;
   e.navT=(e.navT||0)-dt;
   if(e.navT<=0||!e.navGoal){ e.navT=.2; e.navGoal=(e.navGoal||new T.Vector3()).copy(detour(p,goal0,p.y,.42)); e.detouring=e.navGoal.distanceToSquared(goal0)>.01; }
   const goal=e.detouring?e.navGoal:goal0;
@@ -931,7 +985,7 @@ function updateEnemy(e,dt){
   if(active){
     if(e.kind==='rusher'){
       if(!(direct && d3<1.05)){ const sp=e.def.speed*(1+wave*.04)*hurtSp; mx=gx/gd*sp*dt; mz=gz/gd*sp*dt; moving=true;
-        if(direct && d3>3 && !e.detouring){ const w=Math.sin(tAll*4.2+e.strafe)*1.7*dt; mx+=-gz/gd*w; mz+=gx/gd*w; }
+        if(direct && d3>3 && !e.detouring && !tac){ const w=Math.sin(tAll*4.2+e.strafe)*1.7*dt; mx+=-gz/gd*w; mz+=gx/gd*w; }
         e.throwT=(e.throwT===undefined?.5+Math.random()*1.2:e.throwT)-dt;
         if(e.throwT<=0 && e.los && d3>3.2 && d3<15 && !e.armHurt.R){ e.throwT=2.8+Math.random()*2.2; throwBottle(e); } }
       else { e.attackT-=dt; if(e.attackT<=0){ e.attackT=1.1; e.swing=1; sfxSwing(e.group.position.clone().setY(e.group.position.y+1.4)); setTimeout(()=>{ if(e.alive && !e.downed && state==='playing' && Math.hypot(headPos.x-e.group.position.x,headPos.z-e.group.position.z)<1.15 && Math.abs(rig.position.y-e.group.position.y)<.7) hurtPlayer(); },180); } }
@@ -940,7 +994,10 @@ function updateEnemy(e,dt){
       e.aiming=false; e.attackT-=dt;
       if(e.attackT<=0){ e.attackT=1.3; e.swing=1; sfxSwing(e.group.position.clone().setY(e.group.position.y+1.4)); setTimeout(()=>{ if(e.alive && !e.downed && state==='playing' && Math.hypot(headPos.x-e.group.position.x,headPos.z-e.group.position.z)<1.3 && Math.abs(rig.position.y-e.group.position.y)<.7) hurtPlayer(); },200); }
     } else {
-      const inPos=e.los && !e.detouring && d3<=e.stop+(direct?0:5);
+      let inPos=e.los && !e.detouring && d3<=e.stop+(direct?0:5);
+      if(e.fanT>0) inPos=false;
+      else if(e.sqT){ inPos=e.los && (e.moveTurn?e.spotD<.7:(e.spotD<.9 || (!e.detouring && d3<e.stop+2.5)));
+        if(e.role==='over' && p.y<UP_Y-.3) inPos=false; }
       if(!inPos){ const sp=e.def.speed*hurtSp; mx=gx/gd*sp*dt; mz=gz/gd*sp*dt; moving=true;
         if(direct && !e.los){ const sd=Math.sign(Math.sin(e.strafe))||1; mx+=-gz/gd*.6*dt*sd; mz+=gx/gd*.6*dt*sd; } }
       else { e.strafe+=dt*.7; const side=Math.cos(e.strafe)*.55*dt; mx=-dz/dist*side; mz=dx/dist*side; }
@@ -951,9 +1008,11 @@ function updateEnemy(e,dt){
       e.aimedT=aimedAt(vC)?(e.aimedT||0)+dt:0;
       if(e.aimedT>.22){ e.aimedT=0; e.dodgeCd=2+Math.random()*1.5; e.dodgeT=.32; const sd=Math.random()<.5?-1:1; e.dodgeV=new T.Vector3(-dz/dist*sd*5,0,dx/dist*sd*5); e.dodgeSd=sd; e.aiming=false; } }
     if(e.dodgeT>0){ e.dodgeT-=dt; mx=e.dodgeV.x*dt; mz=e.dodgeV.z*dt; moving=true; }
+    for(const o of enemies){ if(o===e||!o.alive||o.downed) continue; const op=o.group.position, sx=p.x-op.x, sz=p.z-op.z, sd=sx*sx+sz*sz;
+      if(sd<1.44 && sd>1e-4 && Math.abs(op.y-p.y)<1){ const l=Math.sqrt(sd), f=(1.2-l)*1.8*dt/l; mx+=sx*f; mz+=sz*f; } }
     moveEntity(p,mx,mz,.35,p.y);
     if(e.def.fire && e.age>1.2 && e.los && d3<e.stop+6 && !(e.dodgeT>0)){
-      e.fireT-=dt;
+      e.fireT-=dt*(e.sqT&&e.moveTurn?.4:1);
       if(e.fireT<.55) e.aiming=true;
       if(e.burst>0){ e.burstT-=dt; if(e.burstT<=0){ e.burstT=.09; e.burst--; e.muzzle.getWorldPosition(vA); const tg=headPos.clone().add(vC.randomDirection().multiplyScalar(.55)); fireProjectile(vA.clone(),tg); sparkBurst(vA,3); sfxEnemyShot(vA.clone()); e.re&&(e.torso.rotation.x-=.04); } }
       if(e.fireT<=0){ enemyShoot(e); e.aiming=false; e.fireT=Math.max(1.3,e.def.fire-wave*.12)*(.8+Math.random()*.5)*(e.armHurt.R?1.6:1); }
@@ -1805,12 +1864,12 @@ function loop(){
       const cap=Math.min(4+wave,10);
       if(toSpawn>0 && spawnT<=0 && alive<cap){
         const d=pickDoor(), n=Math.min(toSpawn,cap-alive,1+(Math.random()<.35+wave*.06?1+(Math.random()<.4?1:0):0));
-        for(let k=0;k<n;k++) spawnEnemy(pickKind(),false,d);
+        if(n>1) spawnSquad(Array.from({length:n},pickKind),d); else spawnEnemy(pickKind(),false,d);
         toSpawn-=n; spawnT=Math.max(.5,1.5-wave*.1)*(n>1?1.6:1); }
       // drag a wave out and reinforcements come through a door behind you
       waveT+=dt;
       if(!reinforced && waveT>26+wave*2 && alive<cap){ reinforced=true; const d=pickDoor();
-        for(let k=0;k<3;k++) spawnEnemy('rusher',false,d);
+        spawnSquad(['rusher','rusher','rusher'],d);
         popupFront('REINFORCEMENTS','','#e0162b',1.2,1.6); }
     } else if(state==='between'){ betweenT-=dt; if(betweenT<=0) nextWave(); }
     else if(state==='over'){ overT+=realDt; }
