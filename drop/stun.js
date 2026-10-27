@@ -80,7 +80,9 @@ export function stunEvent(state, ev) {
     }
 
     case 'tick': {
-      let s = state; /** @type {StunOut[]} */ const out = [];
+      let s = state;
+      /** @type {StunOut[]} */
+      const out = [];
       for (const [id, p] of Object.entries(state.players)) {
         if (p.status !== 'stunned' || ev.t <= p.until) continue;
         if (state.mode === 'solo') return { state: s, out: [{ type: 'restartCheckpoint', reason: 'timedOut' }] };
