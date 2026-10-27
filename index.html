@@ -132,6 +132,7 @@ import { createStage, vrSupported, enterVR, BTN, controllers, setupControllers, 
   createDesktopInput, startLoop, createBulletTime } from './engine/index.js';
 import { DISPLAY, MONO, createPopups, createDecals, createParticles, createBlood } from './fx/index.js';
 import { SKINS, HAIRS, createBodyKit, buildBody, bodyMarks, bodyState, createFaces, createRagdolls, createDamage, poseBody, faceExpression } from './actors/index.js';
+import { createGunKit, launchBody, createTracers, createMelee } from './combat/index.js';
 (function(){
 'use strict';
 const $ = id => document.getElementById(id);
@@ -828,15 +829,7 @@ const { parts, addPart, updateParts, sparkBurst, sparks, sparkGeo } = particles,
 const { spray, mist, updateBlood } = createBlood({ scene, particles, decals, glowTex });
 
 /* ---------- effects ---------- */
-const tracerGeo=new T.CylinderGeometry(.006,.006,1,5,1,true); tracerGeo.rotateX(Math.PI/2);
-const tracers=[]; let tracerIdx=0;
-for(let i=0;i<40;i++){ const m=new T.Mesh(tracerGeo,new T.MeshBasicMaterial({color:0xffe2b0,transparent:true,opacity:0,blending:T.AdditiveBlending,depthWrite:false}));
-  m.visible=false; m.frustumCulled=false; scene.add(m); tracers.push({m,life:0}); }
-function tracer(a,b){
-  const t=tracers[tracerIdx++%tracers.length];
-  t.m.position.copy(a).add(b).multiplyScalar(.5); t.m.lookAt(b); t.m.scale.set(1.5,1.5,a.distanceTo(b));
-  t.m.material.opacity=1; t.m.visible=true; t.life=t.max=bt.active?.35:.07;
-}
+const tracersFx=createTracers(scene,{ slow:()=>bt.active }), { tracer } = tracersFx;
 
 /* ---------- player state ---------- */
 const headPos=new T.Vector3(0,1.6,0), headDir=new T.Vector3(0,0,-1);
@@ -854,83 +847,15 @@ const MAX_HP=MIAMI?3:5, MAG=12, BEST_KEY=MIAMI?'lastcall-miami-best':'lastcall-h
 const mult=()=>Math.min(5,Math.max(1,streak));
 
 /* ---------- guns ---------- */
-const gunMat=new T.MeshLambertMaterial({color:0x1f1f22});
-const WEAPONS={
-  pistol: {name:'PISTOL', auto:false, cool:.1,  pellets:1, spread:0,    ammo:MAG, kick:1,   force:1,   buzz:[.9,55],  muz:-.175},
-  mg:     {name:'UZI', auto:true, cool:.064, pellets:1, spread:.032, ammo:50, kick:.45, force:1.05, buzz:[.5,22], muz:-.23},
-  shotgun:{name:'SAWED-OFF', auto:false, cool:.24, pellets:9, spread:.1, ammo:12, kick:2.1, force:2.5, buzz:[1,140], muz:-.35},
-};
-// Uzi: short boxy receiver, magazine up through the grip, stubby barrel, folded wire stock on top
-function addMG(gr){ const b=(w,h,d,x,y,z,m,rx)=>{ const o=new T.Mesh(new T.BoxGeometry(w,h,d),m||gunMat); o.position.set(x,y,z); if(rx) o.rotation.x=rx; gr.add(o); return o; };
-  const dark=new T.MeshLambertMaterial({color:0x2c2c30});
-  b(.046,.072,.2,0,.018,-.06);                         // receiver
-  b(.048,.014,.15,0,.06,-.05,dark);                    // top cover
-  b(.03,.2,.034,0,-.1,.005,dark,-.28);                 // magazine through the grip
-  b(.008,.03,.06,0,-.035,-.105,dark);                  // trigger guard
-  const br=new T.Mesh(new T.CylinderGeometry(.011,.011,.07,8),gunMat); br.rotation.x=Math.PI/2; br.position.set(0,.02,-.19); gr.add(br);
-  const nut=new T.Mesh(new T.CylinderGeometry(.016,.016,.02,8),dark); nut.rotation.x=Math.PI/2; nut.position.set(0,.02,-.165); gr.add(nut);
-  b(.006,.006,.16,-.02,.064,.03,dark); b(.006,.006,.16,.02,.064,.03,dark); b(.046,.006,.006,0,.064,.11,dark);   // folded wire stock
-  b(.006,.012,.006,0,.07,-.15,dark); }
-// sawed-off: two short barrels side by side, break-action block, cut-down wooden grip
-function addSG(gr){ const b=(w,h,d,x,y,z,m,rx)=>{ const o=new T.Mesh(new T.BoxGeometry(w,h,d),m||gunMat); o.position.set(x,y,z); if(rx) o.rotation.x=rx; gr.add(o); return o; };
-  const wood=new T.MeshLambertMaterial({color:0x3b2416}), steel=new T.MeshLambertMaterial({color:0x2b2b2e});
-  b(.064,.055,.1,0,.012,-.04,steel);                   // action block
-  [-.017,.017].forEach(x=>{ const br=new T.Mesh(new T.CylinderGeometry(.017,.017,.24,12),gunMat); br.rotation.x=Math.PI/2; br.position.set(x,.026,-.21); gr.add(br);
-    const mz=new T.Mesh(new T.RingGeometry(.007,.017,12),new T.MeshBasicMaterial({color:0x050505,side:T.DoubleSide})); mz.position.set(x,.026,-.331); gr.add(mz); });
-  b(.04,.02,.2,0,.0,-.19,wood);                        // short forend under the barrels
-  b(.036,.11,.06,0,-.05,.04,wood,-.5);                 // sawn-off pistol grip
-  b(.05,.04,.06,0,-.002,.03,wood);
-  b(.008,.03,.05,0,-.03,-.03,steel); }
-function setWeapon(g,kind){
-  g.weapon=kind; const W=WEAPONS[kind];
-  g.pistolParts.forEach(m=>m.visible=kind==='pistol'); g.mgG.visible=kind==='mg'; g.sgG.visible=kind==='shotgun';
-  g.muzzle.position.z=W.muz; g.wAmmo=W.ammo; g.barrel=0; syncPips(); hudDirty=true;
-}
-function makeGun(accent,wrist){
-  const root=new T.Group(), body=new T.Group(); body.position.set(0,-.015,.06); root.add(body);
-  const box=(w,h,d,x,y,z,m)=>{ const o=new T.Mesh(new T.BoxGeometry(w,h,d),m); o.position.set(x,y,z); body.add(o); return o; };
-  const pistolParts=[box(.034,.042,.19,0,.01,-.07,gunMat), box(.036,.004,.19,0,.033,-.07,new T.MeshLambertMaterial({color:0x3a3a3e})), box(.006,.008,.006,0,.036,-.155,basic(accent))];
-  const grip=box(.03,.1,.042,0,-.045,0,gunMat); grip.rotation.x=-.28;
-  const mgG=new T.Group(); addMG(mgG); mgG.visible=false; body.add(mgG);
-  const sgG=new T.Group(); addSG(sgG); sgG.visible=false; body.add(sgG);
-  const muzzle=new T.Object3D(); muzzle.position.set(0,.01,-.175); body.add(muzzle);
-  const flash=new T.Sprite(new T.SpriteMaterial({map:glowTex,color:0xffd090,transparent:true,blending:T.AdditiveBlending,depthWrite:false}));
-  flash.scale.setScalar(.2); flash.visible=false; muzzle.add(flash);
-  const lg=new T.BufferGeometry().setFromPoints([new T.Vector3(0,0,0),new T.Vector3(0,0,-22)]);
-  const laser=new T.Line(lg,new T.LineBasicMaterial({color:accent,transparent:true,opacity:.22,blending:T.AdditiveBlending,depthWrite:false}));
-  muzzle.add(laser);
-  const ammoPips=new T.InstancedMesh(new T.BoxGeometry(.004,.006,.007),basic(WHITE),MAG); for(let i=0;i<MAG;i++) ammoPips.setMatrixAt(i,new T.Matrix4().makeTranslation(.019,.012,-.15+i*.011)); ammoPips.frustumCulled=false; body.add(ammoPips);
-  const hpPips=new T.InstancedMesh(new T.BoxGeometry(.007,.008,.004),basic(RED),MAX_HP); for(let i=0;i<MAX_HP;i++) hpPips.setMatrixAt(i,new T.Matrix4().makeTranslation(-.016+i*.008,.045,.024)); hpPips.frustumCulled=false; body.add(hpPips);
-  let wristScreen=null;
-  if(wrist){ wristScreen=new T.Mesh(new T.PlaneGeometry(.12,.06),new T.MeshBasicMaterial({map:wristTex,transparent:true,fog:false}));
-    wristScreen.position.set(0,.085,.06); wristScreen.rotation.x=-.55; body.add(wristScreen); }
-  return {root,body,muzzle,flash,laser,ammoPips,hpPips,ammo:MAG,kick:0,cool:0,spin:0,flashT:0,emptyT:0,meleeCd:0,whip:0,prevTip:null,
-    pistolParts,mgG,sgG,weapon:'pistol',wAmmo:0,held:false};
-}
+const gunKit=createGunKit({ glowTex, basic, pipColor:WHITE, hpColor:RED, maxHp:MAX_HP, onChange(){ syncPips(); hudDirty=true; } });
+const { gunMat, WEAPONS, addMG, addSG, setWeapon, addAmmoDisplay, drawCount, animateGun } = gunKit;
+const makeGun=(accent,wrist)=>gunKit.makeGun(accent,wrist?wristTex:null);
 const wristCv=document.createElement('canvas'); wristCv.width=384; wristCv.height=192; const wctx=wristCv.getContext('2d');
 const wristTex=new T.CanvasTexture(wristCv);
 const guns={left:makeGun(RED,true), right:makeGun(WHITE,false)};
 const deskGun=makeGun(WHITE,false); deskGun.root.position.set(.15,-.15,-.42); deskGun.root.rotation.y=.06; deskGun.root.visible=false; camera.add(deskGun.root);
 const allGuns=[guns.left,guns.right,deskGun];
 /* ---------- ammo you can read in VR: a counter on the Uzi and the sawed-off, shell lights on the sawed-off ---------- */
-function addAmmoDisplay(g){
-  const cv=document.createElement('canvas'); cv.width=96; cv.height=48; const tex=new T.CanvasTexture(cv);
-  const scr=new T.Mesh(new T.PlaneGeometry(.05,.025),new T.MeshBasicMaterial({map:tex,transparent:true,fog:false}));
-  scr.rotation.x=-1.05; scr.visible=false; g.body.add(scr);
-  const shells=[-.017,.017].map(x=>{ const m=new T.Mesh(new T.BoxGeometry(.012,.006,.02),new T.MeshBasicMaterial({color:0xff3a2a})); m.position.set(x,.046,.0); m.visible=false; g.body.add(m); return m; });
-  g.cnt={cv,tex,scr,shells,last:-1};
-}
-function drawCount(g){
-  const c=g.cnt; if(!c) return; const sp=g.weapon!=='pistol'; c.scr.visible=sp; c.shells.forEach(m=>m.visible=g.weapon==='shotgun');
-  if(!sp) return;
-  if(g.weapon==='mg') c.scr.position.set(0,.078,.04); else c.scr.position.set(0,.05,.045);
-  if(g.weapon==='shotgun'){ const loaded=Math.min(g.wAmmo,(g.barrel||0)%2===0?2:1); c.shells.forEach((m,i)=>m.material.color.setHex(i<loaded?0xff3a2a:0x2a0806)); }
-  if(c.last===g.wAmmo) return; c.last=g.wAmmo;
-  const x=c.cv.getContext('2d'), low=g.wAmmo<=Math.ceil(WEAPONS[g.weapon].ammo*.2);
-  x.clearRect(0,0,96,48); x.fillStyle='rgba(6,6,6,.85)'; x.fillRect(0,0,96,48);
-  x.fillStyle=low?'#ff3a2a':'#f2efe8'; x.font="900 40px 'Big Shoulders Display', Impact, sans-serif"; x.textAlign='center'; x.textBaseline='middle'; x.fillText(String(g.wAmmo),48,26);
-  c.tex.needsUpdate=true;
-}
 
 allGuns.forEach(addAmmoDisplay);
 function syncPips(){ allGuns.forEach(g=>{ const n=g.weapon==='pistol'||!g.weapon?g.ammo:Math.ceil(g.wAmmo/WEAPONS[g.weapon].ammo*MAG); g.ammoPips.count=Math.max(0,Math.min(MAG,n)); g.hpPips.count=Math.max(0,Math.min(MAX_HP,hp)); }); }
@@ -1235,10 +1160,7 @@ const ray=new T.Raycaster(); ray.far=70;
 let forceMul=1, ricoThisShot=false, blastRags=null;
 const blastO=new T.Vector3();
 // a sawed-off blast throws the whole body: up and back along the shot, harder the closer they were
-function launchRag(r,dir,k){ const d=blastO.distanceTo(r.pts[2].c), hs=Math.max(1.2,Math.min(7,8.4-d*.8))*k, vs=hs*.5, l=Math.hypot(dir.x,dir.z)||1, ux=dir.x/l, uz=dir.z/l;
-  r.asleep=false; r.still=0; if(typeof unbakeRag==='function') unbakeRag(r);
-  r.pts.forEach(p=>{ const j=.85+Math.random()*.3; p.o.x-=ux*hs*j*SIM_H; p.o.z-=uz*hs*j*SIM_H; p.o.y-=vs*j*SIM_H; });
-  return d; }
+function launchRag(r,dir,k){ return launchBody(r,dir,k,blastO,SIM_H,unbakeRag); }
 const spreadV=new T.Vector3();
 function fireGun(gun,origin,dir,hand){
   if(state==='ready'){ startGame(); return; }
@@ -1310,15 +1232,7 @@ function updatePickups(realDt){
 }
 
 /* ---------- melee: pistol-whip ---------- */
-const MELEE_SPEED=2.4, PART_R={head:.2,body:.34,arm:.16,leg:.19};
-const tipNow=new T.Vector3(), swingV=new T.Vector3(), partPos=new T.Vector3();
-function meleeTargets(tip,reach){
-  let best=null, bd=1e9;
-  enemies.forEach(e=>{ if(!e.alive||e.dummy) return; if(e.group.position.distanceTo(tip)>3) return;
-    e.hits.forEach(m=>{ m.getWorldPosition(partPos); const d=partPos.distanceTo(tip)-PART_R[m.userData.part]; if(d<reach&&d<bd){ bd=d; best={e,m,point:partPos.clone()}; } }); });
-  ragdolls.forEach(r=>{ [r.torso,...r.segs.map(s=>s.m)].forEach(m=>{ m.getWorldPosition(partPos); const d=partPos.distanceTo(tip)-PART_R[m.userData.part]; if(d<reach&&d<bd){ bd=d; best={r,m,point:partPos.clone()}; } }); });
-  return best;
-}
+const melee=createMelee({ enemies:()=>enemies, ragdolls }), { meleeTargets } = melee;
 function meleeStrike(gun,hit,dir,speed,hand){
   gun.meleeCd=.35; buzz(hand,1,90); sfxWhack();
   const ud=hit.m.userData, point=hit.point;
@@ -1336,12 +1250,7 @@ function deskMelee(){
   if(!(state==='playing'||state==='between')||deskGun.meleeCd>0||deskGun.spin>0) return;
   deskGun.whip=1; deskGun.meleeCd=.45; sfxSwing();
   camera.getWorldPosition(tO); camera.getWorldDirection(tD);
-  let best=null, bs=-1;
-  const cand=[];
-  enemies.forEach(e=>{ if(e.alive&&!e.dummy) e.hits.forEach(m=>cand.push({e,m})); });
-  ragdolls.forEach(r=>[r.torso,...r.segs.map(s=>s.m)].forEach(m=>cand.push({r,m})));
-  cand.forEach(c=>{ c.m.getWorldPosition(partPos); const v=partPos.clone().sub(tO), d=v.length(); if(d>1.9) return; const dot=v.normalize().dot(tD); if(dot<.8) return;
-    const sc=dot-d*.15; if(sc>bs){ bs=sc; best={...c,point:partPos.clone()}; } });
+  const best=melee.aimTarget(tO,tD);
   if(best) setTimeout(()=>{ if(best.e&&!best.e.alive&&!best.e.downed) return; meleeStrike(deskGun,best,tD.clone(),5.5,'right'); },90);
 }
 
@@ -1680,22 +1589,11 @@ function frame(realDt,time){
   muzzleLightV=Math.max(0,muzzleLightV-realDt*30); muzzleLight.intensity=muzzleLightV;
 
   // guns
-  allGuns.forEach(g=>{
-    g.cool-=realDt; g.emptyT-=realDt; g.kick=Math.max(0,g.kick-realDt*9);
-    if(g.spin>0) g.spin=Math.max(0,g.spin-realDt*20);
-    g.meleeCd-=realDt; g.whip=Math.max(0,g.whip-realDt*5);
-    g.body.rotation.x=g.kick*.45+g.spin-Math.sin(g.whip*Math.PI)*1.1; g.body.position.z=.06+g.kick*.03-Math.sin(g.whip*Math.PI)*.12; g.body.position.x=-Math.sin(g.whip*Math.PI)*.12;
-    g.flashT-=realDt; g.flash.visible=g.flashT>0; if(g.flash.visible) g.flash.material.rotation=Math.random()*6;
-    g.laser.visible=g.spin<=0; drawCount(g);
-  });
+  allGuns.forEach(g=>animateGun(g,realDt));
   if(renderer.xr.isPresenting){
     controllers.forEach(c=>{ const g=c.userData.gun; if(!g) return; tD.set(0,0,-1).applyQuaternion(c.getWorldQuaternion(tQ)); if(tD.y<-.8) reload(g,c.userData.hand);
       // swing detection: the gun's tip speed (rig movement removed) above a threshold whips whatever it touches
-      g.muzzle.getWorldPosition(tipNow); tipNow.sub(rig.position);
-      if(g.prevTip && realDt>0){ swingV.copy(tipNow).sub(g.prevTip).divideScalar(realDt); const sp=swingV.length();
-        if(sp>MELEE_SPEED && g.meleeCd<=0 && (state==='playing'||state==='between')){ tipNow.add(rig.position); const hit=meleeTargets(tipNow,.1); tipNow.sub(rig.position);
-          if(hit) meleeStrike(g,hit,swingV.clone().normalize(),sp,c.userData.hand); } }
-      g.prevTip=(g.prevTip||new T.Vector3()).copy(tipNow); });
+      const sw=melee.swing(g,rig,realDt,(state==='playing'||state==='between')); if(sw) meleeStrike(g,sw.hit,sw.dir,sw.speed,c.userData.hand); });
   } else if(mode==='desktop' && deskGun.weapon==='pistol' && deskGun.ammo<=0 && deskGun.cool<-.5) reload(deskGun,'right');
   // full-auto while the trigger is held
   if(renderer.xr.isPresenting) controllers.forEach(c=>{ const g=c.userData.gun; if(g&&g.held&&WEAPONS[g.weapon].auto&&g.cool<=0){ g.muzzle.getWorldPosition(tO); tD.set(0,0,-1).applyQuaternion(c.getWorldQuaternion(tQ)); fireGun(g,tO,tD,c.userData.hand); } });
@@ -1742,7 +1640,7 @@ function frame(realDt,time){
   }
 
   updateParts(dt);
-  tracers.forEach(t=>{ if(t.life>0){ t.life-=realDt; t.m.material.opacity=Math.max(0,t.life/(t.max||.07)); if(t.life<=0) t.m.visible=false; } });
+  tracersFx.update(realDt);
   popups.update(realDt);
   if(frenzyT>0){ frenzyT-=realDt; if(frenzyT<=0) hudDirty=true; }
   const fz=frenzyT>0?(.1+.08*Math.sin(tAll*14)):0;
