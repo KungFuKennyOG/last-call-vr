@@ -8,7 +8,8 @@ A gory wave shooter for Meta Quest 3, set in a brutalist concrete techno club, b
 
 | Input | Action |
 |---|---|
-| Trigger | Fire (one pistol per hand) |
+| Trigger | Fire (one gun per hand; hold for full-auto with the machine gun) |
+| Grip button | Grab a machine gun or shotgun off the floor |
 | Left stick | Move where you're looking |
 | Right stick | Snap turn 30° |
 | Swing a gun hard | Pistol-whip (finishes downed enemies, launches bodies) |
@@ -21,7 +22,9 @@ Pillars block bullets both ways. Enemies come through doors on both floors, path
 
 Hits land where they hit: gut shots double enemies over, arm shots fling the arm back, leg shots buckle the knee, and the damage sticks (limps, dead arms, a hand on a gut wound). Two leg hits or some non-head kills drop them alive as physics ragdolls that clutch the wound, kick, crawl and try to roll over while they bleed out, unless you finish them. The soundtrack is hard techno at 138 BPM that builds with each wave and your streak, breaks down between waves and drops when the next one starts (M toggles it in the browser). Shooters pistol-whip you if you get within arm's reach.
 
-Browser mode (no headset): `WASD` to move, click to lock aim, mouse to look, click to shoot, `F` or right-click to melee, `R` to reload.
+Machine guns (60 rounds, full-auto) and shotguns (10 shells, 8 pellets, launches bodies and tears limbs off) show up as floor pickups from wave 2 and drop from gunners and heavies; you go back to the pistol when they run dry. Enemies come in squads, often through a door behind you, and you can hear where: door slams, shots and groans are positional. Gunners fire machine-gun bursts, heavies fire shotgun spreads, rushers zigzag and throw bottles you can shoot down, and shooters sidestep your laser. Every kill refunds two rounds; five in a row starts a five-second FRENZY (double fire rate, no ammo use). Kills with both guns within 1.2 s score AKIMBO, and stalling a wave brings reinforcements.
+
+Browser mode (no headset): `WASD` to move, click to lock aim, mouse to look, click to shoot (hold for full-auto), walk over a weapon to pick it up, `F` or right-click to melee, `R` to reload.
 
 ## Install on the Quest
 
