@@ -40,6 +40,10 @@ Bullet time slows everything to about a quarter speed for up to five seconds, yo
 
 Browser mode (no headset): `WASD` to move, `Space` jump, `Shift` dash, `C` slide, `E` bullet time, click to lock aim, mouse to look, click to shoot (hold for full-auto), walk over a weapon to pick it up, `F` or right-click to melee, `R` to reload.
 
+### Performance
+
+Both arena maps are built for the Quest 3: the hall is merged into a handful of draws at load, each enemy's body parts are merged per joint, bodies that stop moving are baked flat, and blood, sparks, bullet holes and the gun's ammo pips are batched or instanced. A busy fight peaks around 135 draw calls per eye in the Bunker and 155 in Miami (down from roughly 630 and 790). Your frame rate shows in the corner of the wrist screen and turns red under 65.
+
 ## Showdowns
 
 **Play:** https://kungfukennyog.github.io/last-call-vr/campaign/
