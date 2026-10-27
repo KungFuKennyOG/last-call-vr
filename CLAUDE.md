@@ -95,6 +95,8 @@ Phases: 0 dev tooling (done), 1 engine split, 2 chapter 1 solo slice, 3 chapters
 
 **Now:** task 1.1 is done (`dev/boot.html` boots three r149 from the module build) but still needs a check on the Quest. Next is 1.2: extract `engine/` (renderer, XR session, input, frame loop, bullet time clock) so both games use it with no visible change.
 
+Ahead of phase 2, the chapter 1 rules that don't need the engine are done as pure modules in `drop/`: `codes.js` (password codes, task 2.2 logic), `bag.js` (bag events and grabber decisions, task 2.3 logic) and `rating.js` (star rating, task 2.12 math). Their visible parts (VR keypad, bag mesh, results screen) come with the campaign shell.
+
 ## Decision log
 
 - Last Drop is solo-first: the whole campaign is finished and playable alone (phase 4) before co-op is built (phase 5). Any mix of VR and desktop works in co-op.
