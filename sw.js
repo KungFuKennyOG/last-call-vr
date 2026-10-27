@@ -1,12 +1,18 @@
 // Caches the game shell and three.js so the installed app keeps working offline after the first launch.
-const CACHE = 'last-call-v21';
+const CACHE = 'last-call-v22';
 const SHELL = [
   './',
   './index.html',
+  './showdowns/',
+  './showdowns/index.html',
   './manifest.json',
   './icons/icon-192.png',
   './icons/icon-512.png',
-  './engine/index.js', './engine/stage.js', './engine/xr.js', './engine/input.js', './engine/loop.js', './engine/bullet-time.js',
+  './engine/bullet-time.js', './engine/index.js', './engine/input.js', './engine/loop.js', './engine/stage.js', './engine/xr.js',
+  './fx/billboards.js', './fx/blood.js', './fx/decals.js', './fx/fire.js', './fx/index.js', './fx/particles.js', './fx/popups.js', './fx/weather.js',
+  './actors/animate.js', './actors/body.js', './actors/damage.js', './actors/faces.js', './actors/index.js', './actors/ragdoll.js',
+  './combat/guns.js', './combat/index.js', './combat/melee.js', './combat/throw.js', './combat/tracers.js',
+  './audio/core.js', './audio/index.js', './audio/music.js', './audio/sfx.js',
   'https://cdn.jsdelivr.net/npm/three@0.149.0/build/three.module.js'
 ];
 

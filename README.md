@@ -46,7 +46,7 @@ Both arena maps are built for the Quest 3: the hall is merged into a handful of 
 
 ## Showdowns
 
-**Play:** https://kungfukennyog.github.io/last-call-vr/campaign/
+**Play:** https://kungfukennyog.github.io/last-call-vr/showdowns/
 
 Seven short themed levels (six plus the original cut of the Tokyo one), three to six minutes each, with slower, Max Payne-style movement: you walk, hop with a small jump (no dashing), and use bullet time. Enemies stand around, smoke and patrol until they see or hear you. Doors open when you walk into them and knock down whoever's behind. Each level ends with a boss and a rating.
 

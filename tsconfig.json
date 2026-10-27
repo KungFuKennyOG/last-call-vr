@@ -1,6 +1,6 @@
 {
   // Type checks the plain-JS modules through JSDoc. Nothing is compiled or emitted: the browser runs the files as written.
-  // The two big single-file games (index.html, campaign/index.html) aren't covered until they move onto the modules (task 1.7).
+  // The games' page scripts (index.html, showdowns/index.html) are inline and not covered; their shared code lives in the module folders below.
   "compilerOptions": {
     "allowJs": true,
     "checkJs": true,
