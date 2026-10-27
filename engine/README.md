@@ -34,3 +34,17 @@ Keep the version pinned to r149 until both games are on the modules: they still 
 ## Service worker
 
 `sw.js` fetches same-origin files network-first, so a pushed module change reaches the Quest on the next load instead of being served stale from cache. The CDN copy of three.js stays cache-first.
+
+## engine/
+
+Import everything from `engine/index.js`. One page, one renderer: the controller list is shared module state.
+
+| Module | What it gives you |
+| --- | --- |
+| `stage.js` | `createStage({ canvas, far })` → `{ renderer, scene, camera, rig }`. WebXR on, pixel ratio capped at 2, resizes with the window (not while in VR). Move and turn the rig, never the camera. |
+| `xr.js` | `vrSupported()`, `enterVR(renderer)`: local-floor, hand tracking optional, foveation 1. |
+| `input.js` | VR: `setupControllers(renderer, rig, { connected, disconnected, selectstart, selectend, squeezestart })` fills `controllers` (each has `userData.hand` and `userData.gamepad`). `pressed(c, BTN.A)` is true on the frame a button goes down, `readStick(c, out)` reads the thumbstick, `buzz(hand, strength, ms)` rumbles. Desktop: `createDesktopInput(canvas, { active, onUnlock, touch })` → `{ keys, yaw, pitch, locked, lock() }` with pointer-lock mouse look and optional drag-to-look on touch screens. |
+| `loop.js` | `startLoop(renderer, frame, { onFps })`: calls `frame(realDt, time)` every frame with `realDt` capped at 0.05 s; logs the first few errors and keeps going. |
+| `bullet-time.js` | `createBulletTime({ camera, drain, refill, endWhenIdle, onStart, onEnd, onMuffle })` → `bt`. Call `bt.update(realDt, live)` every frame, even while paused; it returns the world speed, so `dt = realDt * speed`. `bt.toggle(live)` for the button, `bt.slowmo(scale, seconds)` for big moments; read `bt.meter`, `bt.active`, `bt.slowT`. |
+
+Buttons on Quest Touch: `BTN.TRIGGER` 0, `BTN.GRIP` 1, `BTN.STICK` 3 (click), `BTN.A` 4 (X on the left), `BTN.B` 5 (Y on the left).
