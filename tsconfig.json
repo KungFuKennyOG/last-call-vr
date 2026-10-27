@@ -1,0 +1,20 @@
+{
+  // Type checks the plain-JS modules through JSDoc. Nothing is compiled or emitted: the browser runs the files as written.
+  // The two big single-file games (index.html, campaign/index.html) aren't covered until they move onto the modules (task 1.7).
+  "compilerOptions": {
+    "allowJs": true,
+    "checkJs": true,
+    "noEmit": true,
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "types": [],
+    "strict": false,
+    "noImplicitAny": false,
+    "noFallthroughCasesInSwitch": true,
+    "forceConsistentCasingInFileNames": true,
+    "skipLibCheck": true
+  },
+  "include": ["types", "engine", "actors", "combat", "fx", "audio", "drop", "dev"]
+}

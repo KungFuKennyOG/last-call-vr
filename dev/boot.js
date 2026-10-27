@@ -3,7 +3,7 @@ import * as T from 'three';
 import { vrSupported, enterVR } from '../engine/xr.js';
 
 const $ = id => document.getElementById(id);
-const status = $('status'), vrBtn = $('vrBtn');
+const status = $('status'), vrBtn = /** @type {HTMLButtonElement} */ ($('vrBtn'));
 
 const renderer = new T.WebGLRenderer({ canvas: $('c'), antialias: true, powerPreference: 'high-performance' });
 renderer.setPixelRatio(Math.min(devicePixelRatio || 1, 2));
