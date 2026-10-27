@@ -1,5 +1,5 @@
 // Caches the game shell and three.js so the installed app keeps working offline after the first launch.
-const CACHE = 'last-call-v6';
+const CACHE = 'last-call-v7';
 const SHELL = [
   './',
   './index.html',
