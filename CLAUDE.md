@@ -105,6 +105,7 @@ Phases: 0 dev tooling, 1 engine split, 2 chapter 1 solo slice, 3 chapters 4 and 
 - Voice chat runs over the same WebRTC connection, positional, with a radio filter when players are apart.
 - Fist bumps and high fives work any time no enemies are around.
 - Art direction is locked to the settings above.
+- Tone: a light-hearted buddy action comedy (Mo the deadpan veteran, Vee the reckless rookie). Gore and slow deaths are over the top and cartoonish: big bright pixel blood, slapstick ragdolls, enemies who complain while they crawl. A few beats (the chapter 6 betrayal, the ending choice) are played with heart.
 
 ## Asking for a headset check
 
