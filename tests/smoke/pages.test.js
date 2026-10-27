@@ -13,7 +13,8 @@ import { startServer } from '../../tools/serve.mjs';
 const PAGES = [
   { name: 'boot', path: '/dev/boot.html', ready: '__bootOK' },
   { name: 'last-call', path: '/index.html' },
-  { name: 'showdowns', path: '/campaign/index.html' },
+  { name: 'showdowns', path: '/showdowns/index.html' },
+  { name: 'campaign-redirect', path: '/campaign/' }, // old Showdowns link: should land on showdowns/
 ];
 const THREE_URL = 'https://cdn.jsdelivr.net/npm/three@0.149.0/build/three.module.js';
 const OUT = new URL('./out/', import.meta.url);

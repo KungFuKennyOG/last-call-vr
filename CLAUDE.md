@@ -8,8 +8,8 @@ WebXR shooters for Meta Quest 3, played in the Quest browser and hosted on GitHu
 
 | Mode | Where | Status |
 | --- | --- | --- |
-| **Last Call** | `index.html` (one file, ~2,400 lines) | Wave arena, Bunker and Miami '89 maps. Shipped. |
-| **Showdowns** | `campaign/index.html` (one file, ~3,000 lines) | Seven themed mini-levels. Shipped. Moves to `showdowns/` in task 1.7. |
+| **Last Call** | `index.html` (~1,700 lines, on the shared modules) | Wave arena, Bunker and Miami '89 maps. Shipped. |
+| **Showdowns** | `showdowns/index.html` (~2,300 lines, on the shared modules) | Seven themed mini-levels. Shipped. `campaign/` redirects here for old links. |
 | **Last Drop** | `drop/` (empty) | The planned 7-chapter campaign: two couriers, one night, a stolen bag. Solo or 2-player co-op, VR and desktop cross-play. |
 
 The owner is Kenny. He plays every change on a Quest 3, and that's the slow part of every loop, so make each change easy to check (see "Asking for a headset check").
@@ -24,6 +24,7 @@ The owner is Kenny. He plays every change on a Quest 3, and that's the slow part
 | `fx/` | Blood, decals, sparks, smoke, rain (all instanced) |
 | `audio/` | Positional sound, music |
 | `drop/` | Last Drop: one file per chapter plus the campaign shell |
+| `showdowns/` | Showdowns (`campaign/index.html` only redirects here) |
 | `dev/` | Test pages, one per system (`dev/boot.html` is the first) |
 | `tests/unit/` | Node tests for pure modules |
 | `tests/smoke/` | Headless browser tests for every page |
@@ -102,7 +103,7 @@ The full spec, with the shaders, palettes, proportions and face grids, is in `cl
 
 Phases: 0 dev tooling (done), 1 engine split, 2 chapter 1 solo slice, 3 chapters 4 and 7, 4 the full campaign solo, 5 co-op and cross-play. Each task has a number, a "done when" and a size in `claude/campaign-plan.md`.
 
-**Now:** task 1.1 is done (`dev/boot.html` boots three r149 from the module build) but still needs a check on the Quest. Next is 1.2: extract `engine/` (renderer, XR session, input, frame loop, bullet time clock) so both games use it with no visible change.
+**Now:** tasks 1.1–1.7 are done in code: both games run on `engine/`, `fx/`, `actors/`, `combat/` and `audio/`, and a seeded headless playthrough renders every frame identical to the old single-file pages. Showdowns lives in `showdowns/`. Still to do: the Quest check of VR input and fps (1.8), then phase 2. Each module folder is documented in `engine/README.md`.
 
 Ahead of phase 2, the chapter 1 rules that don't need the engine are done as pure modules in `drop/`: `codes.js` (password codes, task 2.2 logic), `bag.js` (bag events and grabber decisions, task 2.3 logic) and `rating.js` (star rating, task 2.12 math). Their visible parts (VR keypad, bag mesh, results screen) come with the campaign shell.
 
