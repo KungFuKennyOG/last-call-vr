@@ -44,7 +44,7 @@ Browser mode (no headset): `WASD` to move, `Space` jump, `Shift` dash, `C` slide
 
 **Play:** https://kungfukennyog.github.io/last-call-vr/campaign/
 
-Five short themed levels, three to five minutes each, with slower, Max Payne-style movement: you walk (no jumping or dashing), dive sideways in slow motion, and use bullet time. Enemies stand around, smoke and patrol until they see or hear you. Doors open when you walk into them and knock down whoever's behind. Each level ends with a boss and a rating.
+Six short themed levels, three to six minutes each, with slower, Max Payne-style movement: you walk (no jumping or dashing), dive sideways in slow motion, and use bullet time. Enemies stand around, smoke and patrol until they see or hear you. Doors open when you walk into them and knock down whoever's behind. Each level ends with a boss and a rating.
 
 | | Level | Setting |
 |---|---|---|
@@ -53,13 +53,14 @@ Five short themed levels, three to five minutes each, with slower, Max Payne-sty
 | 3 | No Man's Town | The front, 1944. A bombed village square at dusk: sandbags, a burning truck, grenades, artillery (watch for the red rings), a machine gun in the church window. Generic army, no insignia. |
 | 4 | Gang Wars | Chicago, 1929. Behind a barbershop, two mobs are already shooting at each other in a speakeasy; they'll shoot you too. Big Sal and his Tommy gun wait in the warehouse. Hot jazz. |
 | 5 | Morro | Rio de Janeiro, 2009. Up the stair alleys of a hillside favela with snipers on the roofs (watch for their red lasers) to the football court at the top. Baile funk. |
+| 6 | Shinjuku Rain | Tokyo, 2026. A private army has taken the crossing. Fight through a rainy izakaya alley and a street of wrecks, walk up to the charge on the konbini door for a slow-motion breach, then clear the crossing under giant screens while a helicopter's searchlight hunts you (get caught in it and everyone knows where you are); the boss fast-ropes down. Lasers on every rifle, modern cinematic score. |
 
 | Input | Action |
 |---|---|
 | Trigger | Fire (hold for full-auto with the Uzi / Tommy gun) |
 | Left stick | Walk |
 | Right stick | Snap turn 30° |
-| A or X | Slow-motion dive (sideways, or the way you're pushing the stick) |
+| A or X | Slow-motion dive (sideways, or the way you're pushing the stick). Turn off **Dive drop** on the title screen to keep your eye height fixed during the dive |
 | Y, or click the right stick | Bullet time |
 | B, or grip with nothing in reach | Throw the gun in your hand (stuns; aims itself a little) |
 | Grip near a weapon | Pick it up |
