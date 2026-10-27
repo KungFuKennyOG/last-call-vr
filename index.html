@@ -1761,7 +1761,7 @@ function loop(){
   camera.getWorldPosition(headPos); camera.getWorldDirection(headDir);
   if(actx){ const Ls=actx.listener; if(Ls.positionX){ Ls.positionX.value=headPos.x; Ls.positionY.value=headPos.y; Ls.positionZ.value=headPos.z; Ls.forwardX.value=headDir.x; Ls.forwardY.value=headDir.y; Ls.forwardZ.value=headDir.z; Ls.upX.value=0; Ls.upY.value=1; Ls.upZ.value=0; }
     else { Ls.setPosition(headPos.x,headPos.y,headPos.z); Ls.setOrientation(headDir.x,headDir.y,headDir.z,0,1,0); } }
-  if(!paused && (mode==='vr'||mode==='desktop')) locomotion(realDt);
+  if(!paused && (mode==='vr'||mode==='desktop')) locomotion(realDt*timeScale);
 
   // light: red breathing, fluorescent hum, strobe bursts
   redLights.forEach((l,i)=>{ l.intensity=2+Math.sin(tAll*.5+i*2)*.4; });

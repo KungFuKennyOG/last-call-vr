@@ -29,7 +29,7 @@ Uzis (50 rounds, full-auto) and sawed-offs (12 shells, two quick barrels then a 
 
 Movement carries momentum: jumps keep your speed, you can steer in the air, and kills while airborne, mid-dash or sliding score ×1.5. Red launch pads on the floor throw you onto the balcony and the one upstairs throws you back across the hall; landing hard next to enemies stomps them. Moving fast makes enemy shots graze past more often.
 
-Bullet time slows the world to about a quarter speed while you move and shoot at full speed, for up to five seconds. Kills refill the meter (headshots and airborne or dash kills more), and it trickles back on its own.
+Bullet time slows everything to about a quarter speed for up to five seconds, your own running, jumps and dashes included, while your aim and fire rate stay at full speed. Kills refill the meter (headshots and airborne or dash kills more), and it trickles back on its own.
 
 Browser mode (no headset): `WASD` to move, `Space` jump, `Shift` dash, `C` slide, `E` bullet time, click to lock aim, mouse to look, click to shoot (hold for full-auto), walk over a weapon to pick it up, `F` or right-click to melee, `R` to reload.
 
