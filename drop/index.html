@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#08080a">
+<link rel="manifest" href="../manifest.json">
+<link rel="icon" href="../icons/icon-192.png">
+<title>Last Drop</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;900&family=IBM+Plex+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: the chapter renders full-bleed in low-res pixels behind; the title slab sits low-left with the code entry and the start buttons */
+:root{
+  --bg:#08080a; --ink:#ebe8e1; --muted:#8d8a83; --line:#2c2b29; --acc:#ff7a1a; --red:#e0162b; --teal:#17a597; --panel:rgba(8,8,10,.86);
+  --display:'Big Shoulders Display','Arial Narrow',Impact,sans-serif;
+  --mono:'IBM Plex Mono',ui-monospace,'SFMono-Regular',Menlo,monospace;
+  color-scheme:dark;
+}
+html,body{height:100%;margin:0}
+[hidden]{display:none!important}
+body{background:var(--bg);color:var(--ink);font-family:var(--mono);overflow:hidden}
+#c{position:fixed;inset:0;width:100%;height:100%;display:block;touch-action:none;image-rendering:pixelated}
+#overlay{position:fixed;inset:0;display:flex;flex-direction:column;overflow:auto;
+  padding-block:28px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));
+  background:linear-gradient(180deg,rgba(8,8,10,.15) 0%,rgba(8,8,10,.55) 45%,rgba(8,8,10,.95) 100%)}
+.card{max-width:600px;width:100%;display:grid;gap:16px;margin-top:auto;margin-left:clamp(0px,4vw,56px)}
+.kick{margin:0;font-size:12px;letter-spacing:.2em;text-transform:uppercase;color:var(--muted)}
+.kick a{color:var(--muted)}
+.logo{font-family:var(--display);font-weight:900;font-size:clamp(64px,17vw,136px);line-height:.82;margin:0;text-transform:uppercase}
+.logo b{color:var(--acc);font-weight:900}
+.rule{height:4px;width:96px;background:var(--acc)}
+.tag{margin:0;color:#cfccc4;font-size:14px;line-height:1.6;max-width:54ch}
+.chapter{display:grid;grid-template-columns:auto 1fr;gap:4px 14px;align-items:baseline;padding:12px 14px;background:var(--panel);border:1px solid var(--line);box-shadow:inset 4px 0 0 var(--acc)}
+.chapter .n{grid-row:span 2;font:900 30px/1 var(--display);color:var(--acc)}
+.chapter .t{font:900 24px/1 var(--display);text-transform:uppercase}
+.chapter .p{font-size:12px;color:var(--muted)}
+.code{display:flex;gap:8px;flex-wrap:wrap;align-items:stretch}
+.code label{flex-basis:100%;font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--muted)}
+.code input{flex:1 1 180px;min-width:0;font:600 22px/1 var(--mono);letter-spacing:.14em;text-transform:uppercase;padding:12px 14px;background:#111114;color:var(--ink);border:1px solid var(--line);border-radius:0}
+.code input:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
+.code button{font:600 12px/1 var(--mono);letter-spacing:.16em;text-transform:uppercase;padding:0 16px;border:1px solid var(--ink);background:transparent;color:var(--ink);cursor:pointer}
+#codeMsg{flex-basis:100%;margin:0;font-size:12px;min-height:1.2em;color:var(--muted)}
+#codeMsg.bad{color:var(--red)}
+#codeMsg.ok{color:var(--teal)}
+.btns{display:flex;gap:10px;flex-wrap:wrap}
+.btns button{font:600 13px/1 var(--mono);letter-spacing:.16em;text-transform:uppercase;padding:16px 22px;border-radius:0;cursor:pointer;border:1px solid var(--acc);background:var(--acc);color:#0a0a0a}
+.btns button.ghost{background:transparent;color:var(--ink);border-color:var(--ink)}
+.btns button:disabled{opacity:.3;cursor:not-allowed}
+button:focus-visible{outline:2px solid var(--acc);outline-offset:3px}
+.note{margin:0;font-size:12px;color:var(--muted);min-height:1.2em}
+dl.how{display:grid;grid-template-columns:auto 1fr;gap:8px 18px;margin:0;font-size:13px;line-height:1.45;padding:14px 16px;background:var(--panel);border-left:3px solid var(--acc)}
+dl.how dt{color:var(--ink);font-weight:600;font-size:11px;letter-spacing:.14em;text-transform:uppercase;padding-top:1px}
+dl.how dd{margin:0;min-width:0;color:var(--muted)}
+#hud{position:fixed;top:calc(12px + env(safe-area-inset-top,0px));left:max(16px,env(safe-area-inset-left,0px));right:max(16px,env(safe-area-inset-right,0px));
+  display:flex;gap:22px;align-items:baseline;font-variant-numeric:tabular-nums;pointer-events:none;flex-wrap:wrap;text-shadow:0 0 8px #000}
+#hud small{display:block;font-size:10px;color:var(--muted);letter-spacing:.18em}
+#hud .v{font-family:var(--display);font-weight:900;font-size:26px;line-height:1}
+#hHp{color:var(--red);letter-spacing:.1em}
+#hBounty{color:var(--acc)}
+#hBossW{min-width:200px}
+#hBossW .bar{height:8px;background:#2a2928;margin-top:6px}
+#hBossBar{height:100%;background:var(--red);width:100%}
+#sub{position:fixed;left:50%;bottom:calc(64px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);max-width:min(720px,calc(100% - 32px));
+  padding:10px 16px;background:rgba(8,8,10,.82);border-left:4px solid var(--acc);font-size:15px;line-height:1.45;pointer-events:none}
+#sub b{display:block;font:600 11px/1.2 var(--mono);letter-spacing:.18em;text-transform:uppercase;color:var(--acc);margin-bottom:3px}
+#msg{position:fixed;left:50%;top:38%;transform:translate(-50%,-50%);font:900 34px/1 var(--display);text-transform:uppercase;letter-spacing:.04em;text-shadow:0 2px 0 #000;pointer-events:none;text-align:center}
+#cross{position:fixed;left:50%;top:50%;width:18px;height:18px;margin:-9px 0 0 -9px;pointer-events:none}
+#cross::before,#cross::after{content:"";position:absolute;background:var(--ink)}
+#cross::before{left:8px;top:0;width:2px;height:18px}
+#cross::after{top:8px;left:0;width:18px;height:2px}
+#keys{position:fixed;bottom:calc(14px + env(safe-area-inset-bottom,0px));left:max(16px,env(safe-area-inset-left,0px));right:16px;font-size:11px;color:var(--muted);letter-spacing:.08em;pointer-events:none}
+#pause{position:fixed;inset:auto 0 calc(24px + env(safe-area-inset-bottom,0px)) 0;display:flex;justify-content:center}
+#pause button{font:600 13px/1 var(--mono);letter-spacing:.16em;text-transform:uppercase;padding:16px 22px;border:1px solid var(--ink);background:var(--ink);color:#0a0a0a;cursor:pointer}
+</style>
+</head>
+<body>
+
+<canvas id="c"></canvas>
+
+<div id="overlay">
+  <div class="card">
+    <p class="kick">Last Call · <a href="../">the arena</a> · <a href="../showdowns/">showdowns</a></p>
+    <div class="rule"></div>
+    <h1 class="logo">Last <b>Drop</b></h1>
+    <p class="tag">Two couriers, one rainy night, and a sealed bag every crew in the city wants. Seven chapters from 11 p.m. to sunrise. This build has chapter 1.</p>
+    <div class="chapter" id="chapterCard"><span class="n">01</span><span class="t">Wrong Order</span><span class="p">11 p.m. · a ghost kitchen · solo</span></div>
+    <form class="code" id="codeForm" autocomplete="off">
+      <label for="code">Password code or cheat</label>
+      <input id="code" name="code" maxlength="11" placeholder="XXXX-XXXX" spellcheck="false" autocapitalize="characters">
+      <button type="submit">Use code</button>
+      <p id="codeMsg" aria-live="polite"></p>
+    </form>
+    <div class="btns">
+      <button id="vrBtn" type="button">Enter VR</button>
+      <button id="deskBtn" class="ghost" type="button">Play in browser</button>
+      <button id="musicBtn" class="ghost" type="button">Music: on</button>
+    </div>
+    <p class="note" id="vrNote">Checking for a headset…</p>
+    <dl class="how">
+      <dt>Trigger</dt><dd>Fire. A pistol in each hand. Point a gun at the floor to reload.</dd>
+      <dt>Move</dt><dd>Left stick walks, right stick snap-turns, A or X hops. Doors open when you walk into them.</dd>
+      <dt>The bag</dt><dd>Grab it off the counter. It rides on your back. Grabbers go for it, so drop them before they reach a door.</dd>
+      <dt>Bullet time</dt><dd>Y or click the right stick. Kills refill it.</dd>
+      <dt>Stunned</dt><dd>The world goes grey. Grip near your chest for the adrenaline shot, then stab it down into your thigh.</dd>
+      <dt>Grip</dt><dd>Pick things up: guns, cleavers, the extinguisher. With nothing in reach, B or grip throws what you hold.</dd>
+    </dl>
+  </div>
+</div>
+
+<div id="hud" hidden>
+  <div><small>CHAPTER 1</small><span class="v" id="hObj">WRONG ORDER</span></div>
+  <div><small>HEALTH</small><span class="v" id="hHp"></span></div>
+  <div><small>AMMO</small><span class="v" id="hAmmo">12</span></div>
+  <div><small>BULLET TIME · E</small><span class="v" id="hBT">100%</span></div>
+  <div><small>BOUNTY</small><span class="v" id="hBounty">$0</span></div>
+  <div><small>ADRENALINE · H</small><span class="v" id="hShot">1</span></div>
+  <div id="hBossW" hidden><small id="hBossN">THE EXPEDITER</small><div class="bar"><div id="hBossBar"></div></div></div>
+</div>
+<div id="sub" hidden><b id="subWho"></b><span id="subText"></span></div>
+<div id="msg" hidden></div>
+<div id="keys" hidden>WASD WALK · SPACE HOP · CLICK FIRE · E BULLET TIME · F MELEE · G THROW · Q GRAB · R RELOAD · H ADRENALINE · M MUSIC</div>
+<div id="cross" hidden></div>
+<div id="pause" hidden><button id="resumeBtn" type="button">Paused · Resume</button></div>
+
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.149.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.149.0/examples/jsm/"
+} }
+</script>
+<script type="module" src="./main.js"></script>
+<script>
+if('serviceWorker' in navigator){ addEventListener('load',()=>navigator.serviceWorker.register('../sw.js').catch(()=>{})); }
+</script>
+</body>
+</html>

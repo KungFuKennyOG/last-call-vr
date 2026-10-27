@@ -83,12 +83,14 @@ The Uzi and the sawed-off (in both games) show their remaining rounds on a small
 
 A seven-chapter campaign over one rainy night, in a PS1-style look. Two couriers, Mo and Vee, pick up the wrong order from a ghost kitchen: a bag with a hardware wallet holding a syndicate's money. By midnight there's a bounty on them, and every crew in the city wants the bag. Light-hearted buddy action with cartoonish gore. Play it alone, or later in 2-player co-op with any mix of Quest and computer. Progress saves as old-school password codes.
 
-**Status:** not playable yet. The chapter 1 rules (password codes, the bag, stun and recovery, checkpoints, disarms, the first boss) are written and tested in `drop/`, and the shared engine is being split out of the two games so the campaign can build on it. Progress is tracked in the [issues](https://github.com/KungFuKennyOG/last-call-vr/issues) and [milestones](https://github.com/KungFuKennyOG/last-call-vr/milestones), one milestone per phase.
+**Play (in progress):** https://kungfukennyog.github.io/last-call-vr/drop/ in the Quest browser.
+
+**Status:** chapter 1 is being built (phase 2). The page boots into the ghost kitchen in the PS1 look, you can walk, grab the bag and go through doors from space to space. Progress is tracked in the [issues](https://github.com/KungFuKennyOG/last-call-vr/issues) and [milestones](https://github.com/KungFuKennyOG/last-call-vr/milestones), one milestone per phase.
 
 | Phase | What it delivers |
 | --- | --- |
 | 0. Dev tooling | Checks and tests Claude can run on its own (done) |
-| 1. Engine split | Shared modules for both games, no visible change |
+| 1. Engine split | Shared modules for both games, no visible change (done) |
 | 2. Chapter 1 | The first chapter, solo, start to finish |
 | 3. Chapters 4 and 7 | A short campaign with all three endings |
 | 4. Full campaign | All seven chapters, solo |

@@ -15,6 +15,7 @@ const PAGES = [
   { name: 'last-call', path: '/index.html' },
   { name: 'showdowns', path: '/showdowns/index.html' },
   { name: 'campaign-redirect', path: '/campaign/' }, // old Showdowns link: should land on showdowns/
+  { name: 'last-drop', path: '/drop/index.html', ready: '__dropOK' },
 ];
 const THREE_URL = 'https://cdn.jsdelivr.net/npm/three@0.149.0/build/three.module.js';
 const OUT = new URL('./out/', import.meta.url);
