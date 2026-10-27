@@ -124,6 +124,7 @@ import * as T from 'three';
 import { createStage, vrSupported, enterVR, BTN, controllers, setupControllers, pressed, readStick, buzz,
   createDesktopInput, startLoop, createBulletTime } from '../engine/index.js';
 import { DISPLAY, MONO, createPopups, createDecals, createParticles, createBlood, createFireSmoke, makeWeather, updateWeather, makeRain as makeRainFx } from '../fx/index.js';
+import { SKINS, HAIRS, createBodyKit, buildBody, bodyMarks, bodyState, createFaces, createRagdolls, createDamage, poseBody, faceExpression } from '../actors/index.js';
 (function(){
 'use strict';
 const $ = id => document.getElementById(id);
@@ -694,118 +695,15 @@ const TYPES={
   gunner: {top:0x1f2a3a, pants:0x1a1a1e, hp:2, speed:1.3,  scale:1.02, score:220, fire:3.1, burst:6},
   sniper: {top:0x2a2a22, pants:0x1c1c18, hp:1, speed:0,    scale:1,    score:250, fire:4.4},
 };
-const SKINS=[0xc58c6b,0x8d5a3b,0xe0b090,0x6b4128,0xd9a07a];
-const matCache={}; const lam=c=>matCache[c]||(matCache[c]=new T.MeshLambertMaterial({color:c}));
-const glassesMat=new T.MeshPhongMaterial({color:0x050505,specular:0x8888aa,shininess:90});
-const stumpMat=new T.MeshLambertMaterial({color:0xb00018,emissive:0x5a0008});
-const geoCache={};
-function boxGeo(w,h,d){ const k=w.toFixed(3)+'_'+h.toFixed(3)+'_'+d.toFixed(3); return geoCache[k]||(geoCache[k]=new T.BoxGeometry(w,h,d)); }
+const kit=createBodyKit();
+const { lam, glassesMat, stumpMat, shoeMat, beltMat, boxGeo, capGeo, cylGeo, sphGeo, rbox, chestGeo, torsoRagGeo, part, mark } = kit;
 const enemyGunGeo=boxGeo(.045,.17,.07), enemySgGeo=boxGeo(.07,.38,.06), enemyMgGeo=boxGeo(.055,.24,.09);
 const ENEMY_GUN={sniper:[boxGeo(.045,.64,.07),-.6,-.93],shooter:[enemyGunGeo,-.43,-.53], heavy:[enemySgGeo,-.48,-.68], gunner:[enemyMgGeo,-.44,-.58]};
-const geoC={};
-function capGeo(r,len){ const k='c'+r.toFixed(3)+'_'+len.toFixed(3); return geoC[k]||(geoC[k]=new T.CapsuleGeometry(r,Math.max(.005,len-2*r),3,10)); }
-function cylGeo(r,h){ const k='y'+r.toFixed(3)+'_'+h.toFixed(3); return geoC[k]||(geoC[k]=new T.CylinderGeometry(r,r*1.06,h,10)); }
-function sphGeo(r){ const k='s'+r.toFixed(3); return geoC[k]||(geoC[k]=new T.SphereGeometry(r,10,8)); }
-// a box with rounded edges and smooth normals; taper narrows it toward the bottom (a chest into a waist)
-function rbox(w,h,d,r,taper){
-  const k='r'+[w,h,d,r,taper||0].map(v=>v.toFixed(4)).join('_'); if(geoC[k]) return geoC[k];
-  const g=new T.BoxGeometry(w,h,d,4,4,4), pos=g.attributes.position, nor=g.attributes.normal, v=new T.Vector3(), inn=new T.Vector3();
-  const hx=w/2-r, hy=h/2-r, hz=d/2-r;
-  for(let i=0;i<pos.count;i++){
-    v.fromBufferAttribute(pos,i);
-    inn.set(Math.max(-hx,Math.min(hx,v.x)),Math.max(-hy,Math.min(hy,v.y)),Math.max(-hz,Math.min(hz,v.z)));
-    v.sub(inn); if(v.lengthSq()<1e-12) v.set(0,0,1); v.normalize();
-    const py=inn.y+v.y*r, tf=taper?1-taper*(.5-py/h):1;
-    pos.setXYZ(i,(inn.x+v.x*r)*tf,py,(inn.z+v.z*r)*(taper?.86+.14*tf:1)); nor.setXYZ(i,v.x,v.y,v.z);
-  }
-  return geoC[k]=g;
-}
-const chestGeo=()=>rbox(.4,.5,.23,.08,.18);
-function torsoRagGeo(s){ const k='t'+s.toFixed(3); if(geoC[k]) return geoC[k]; return geoC[k]=rbox(.4*s,.5*s,.23*s,.08*s,.18).clone().translate(0,.085*s,0); }
-const shoeMat=new T.MeshLambertMaterial({color:0x0b0b0b}), beltMat=new T.MeshLambertMaterial({color:0x1c1510});
-const HAIRS=[0x15100c,0x2a1c12,0x0c0c0c,0x5a4632,0x8a8a88];
 const batGeo=new T.CylinderGeometry(.034,.017,.82,10).translate(0,.41,0), batMat=new T.MeshLambertMaterial({color:0xc89a5a});
 // faces: drawn eyes, brows and mouth on a transparent plane over the head's front, swapped per expression
-const FACE_SET={ neutral:['open','flat','smirk'], neutral_blink:['closed','flat','smirk'], angry:['angry','angry','grimace'], angry_blink:['closed','angry','grimace'],
-  pain:['squint','worried','open'], scared:['wide','raised','O'], scream:['wide','angry','scream'], dead:['rolled','flat','slack'],
-  agony:['squint','worried','scream'], plead:['wide','worried','open'] };
-function drawFace([eyes,brows,mouth]){
-  const S=128, cv=document.createElement('canvas'); cv.width=cv.height=S; const g=cv.getContext('2d');
-  g.lineCap='round'; g.lineJoin='round';
-  const L=41, R=87, EY=54, lid='#2a1810', browC='#2b1b11';
-  // faint smile lines from the nose to the mouth corners
-  g.strokeStyle='rgba(70,35,20,.22)'; g.lineWidth=1.6;
-  [[53,1],[75,-1]].forEach(([x,sd])=>{ g.beginPath(); g.moveTo(x,72); g.quadraticCurveTo(x-4*sd,82,x-2*sd,90); g.stroke(); });
-  const eye=(x,side)=>{
-    g.save();
-    if(eyes==='closed'){ g.strokeStyle=lid; g.lineWidth=2.4; g.beginPath(); g.moveTo(x-8,EY); g.quadraticCurveTo(x,EY+3.5,x+8,EY); g.stroke(); g.restore(); return; }
-    if(eyes==='squint'){ g.strokeStyle=lid; g.lineWidth=2.6; g.beginPath(); g.moveTo(x-8,EY-1); g.quadraticCurveTo(x,EY+3,x+8,EY-1); g.stroke();
-      g.lineWidth=1.3; g.strokeStyle='rgba(42,24,16,.6)'; g.beginPath(); g.moveTo(x-7,EY+4); g.quadraticCurveTo(x,EY+6.5,x+7,EY+4); g.stroke();
-      g.beginPath(); g.moveTo(x+side*-9,EY-3); g.lineTo(x+side*-12,EY-1); g.moveTo(x+side*-9,EY+2); g.lineTo(x+side*-12,EY+3); g.stroke(); g.restore(); return; }
-    const rx=eyes==='wide'?8.2:7.4, ry=eyes==='wide'?5.4:eyes==='angry'?3.4:4.1;
-    g.beginPath(); g.ellipse(x,EY,rx,ry,0,0,6.29); g.fillStyle='#ece5da'; g.fill(); g.clip();
-    const iy=eyes==='rolled'?EY-4.6:EY+.3;
-    g.fillStyle='#4a2f1e'; g.beginPath(); g.arc(x,iy,3.7,0,6.29); g.fill();
-    g.fillStyle='#0d0806'; g.beginPath(); g.arc(x,iy,eyes==='wide'?1.4:1.9,0,6.29); g.fill();
-    g.fillStyle='rgba(255,255,255,.85)'; g.beginPath(); g.arc(x+1.2,iy-1.2,.8,0,6.29); g.fill();
-    if(eyes==='angry'){ g.globalCompositeOperation='destination-out'; g.beginPath();
-      g.moveTo(x-12,EY-9); g.lineTo(x+12,EY-9); side<0?g.lineTo(x+12,EY-.5):g.lineTo(x-12,EY-.5); g.closePath(); g.fill(); }
-    g.restore();
-    g.strokeStyle=lid; g.lineWidth=2.2; g.beginPath();
-    if(eyes==='angry'){ side<0?(g.moveTo(x-8,EY-3.5),g.lineTo(x+8,EY-.5)):(g.moveTo(x-8,EY-.5),g.lineTo(x+8,EY-3.5)); }
-    else g.ellipse(x,EY,rx,ry,0,Math.PI*1.08,Math.PI*1.92);
-    g.stroke();
-    g.strokeStyle='rgba(42,24,16,.35)'; g.lineWidth=1; g.beginPath(); g.ellipse(x,EY,rx,ry,0,Math.PI*.15,Math.PI*.85); g.stroke();
-  };
-  eye(L,1); eye(R,-1);
-  g.strokeStyle=browC; g.lineWidth=3.4;
-  const brow=(x1,y1,cx,cy,x2,y2)=>{ g.beginPath(); g.moveTo(x1,y1); g.quadraticCurveTo(cx,cy,x2,y2); g.stroke(); };
-  if(brows==='flat'){ brow(L-10,EY-10,L,EY-13,L+9,EY-11); brow(R-9,EY-11,R,EY-13,R+10,EY-10); }
-  if(brows==='angry'){ brow(L-10,EY-14,L,EY-13,L+9,EY-7); brow(R-9,EY-7,R,EY-13,R+10,EY-14); }
-  if(brows==='worried'){ brow(L-10,EY-9,L,EY-12,L+9,EY-15); brow(R-9,EY-15,R,EY-12,R+10,EY-9); }
-  if(brows==='raised'){ brow(L-10,EY-14,L,EY-19,L+9,EY-15); brow(R-9,EY-15,R,EY-19,R+10,EY-14); }
-  const MY=96, dark='#2a0a08', lip='rgba(120,52,44,.55)';
-  const lower=(w)=>{ g.fillStyle=lip; g.beginPath(); g.ellipse(64,MY+3.5,w,2.4,0,0,6.29); g.fill(); };
-  g.strokeStyle='#3a1610'; g.lineWidth=2;
-  if(mouth==='flat'){ lower(8); g.beginPath(); g.moveTo(55,MY); g.quadraticCurveTo(64,MY+1,73,MY); g.stroke(); }
-  if(mouth==='smirk'){ lower(7.5); g.beginPath(); g.moveTo(55,MY+.5); g.quadraticCurveTo(66,MY+1.5,75,MY-3); g.stroke(); }
-  if(mouth==='grimace'){ g.fillStyle=dark; g.beginPath(); g.ellipse(64,MY+1,12,5.5,0,0,6.29); g.fill();
-    g.fillStyle='#ddd5c6'; g.fillRect(54,MY-3,20,3.2); g.fillRect(55,MY+1.5,18,2.6);
-    g.strokeStyle='rgba(42,10,8,.6)'; g.lineWidth=.8; for(let x=57;x<73;x+=3.4){ g.beginPath(); g.moveTo(x,MY-3); g.lineTo(x,MY+4); g.stroke(); }
-    g.strokeStyle='#3a1610'; g.lineWidth=1.6; g.beginPath(); g.ellipse(64,MY+1,12,5.5,0,0,6.29); g.stroke(); }
-  if(mouth==='open'){ g.fillStyle=dark; g.beginPath(); g.ellipse(64,MY+2,6.5,4.6,0,0,6.29); g.fill(); g.strokeStyle=lip; g.lineWidth=2; g.stroke(); }
-  if(mouth==='O'){ g.fillStyle=dark; g.beginPath(); g.ellipse(64,MY+3,4.6,6.4,0,0,6.29); g.fill(); g.strokeStyle=lip; g.lineWidth=2; g.stroke(); }
-  if(mouth==='scream'){ g.fillStyle=dark; g.beginPath(); g.ellipse(64,MY+3,9.5,9,0,0,6.29); g.fill(); g.fillStyle='#ddd5c6'; g.fillRect(57,MY-5,14,2.6);
-    g.fillStyle='#8a3030'; g.beginPath(); g.ellipse(64,MY+9,5.5,2.8,0,0,6.29); g.fill(); g.strokeStyle=lip; g.lineWidth=2; g.beginPath(); g.ellipse(64,MY+3,9.5,9,0,0,6.29); g.stroke(); }
-  if(mouth==='slack'){ g.fillStyle=dark; g.beginPath(); g.ellipse(65,MY+2,5.5,3.2,.2,0,6.29); g.fill(); lower(6); }
-  const t=new T.CanvasTexture(cv); t.anisotropy=2; return t;
-}
-// a plane bent to sit on the rounded front of the head (head: .2 x .245 x .22, corner radius .06)
-const faceGeo=(()=>{ const g=new T.PlaneGeometry(.19,.22,12,12), pos=g.attributes.position;
-  for(let i=0;i<pos.count;i++){ const dx=Math.max(0,Math.abs(pos.getX(i))-.04), dy=Math.max(0,Math.abs(pos.getY(i))-.0625), q=.0036-dx*dx-dy*dy;
-    pos.setZ(i,(q>0?.05+Math.sqrt(q):.05)-.11+.0025); }
-  g.computeVertexNormals(); return g; })();
-function buildHead(e,k,dead){
-  const m=new T.Mesh(rbox(.2*k,.245*k,.22*k,.06*k),e.mats.skin);
-  const face=new T.Mesh(faceGeo,dead?faceMats.dead:faceMats.neutral); face.scale.setScalar(k); face.position.z=.11*k; m.add(face);
-  const nose=new T.Mesh(rbox(.032*k,.055*k,.04*k,.012*k),e.mats.skin); nose.position.set(0,-.014*k,.118*k); nose.rotation.x=-.12; m.add(nose);
-  [-1,1].forEach(sx=>{ const ear=new T.Mesh(rbox(.026*k,.062*k,.045*k,.011*k),e.mats.skin); ear.position.set(sx*.102*k,0,-.004*k); m.add(ear); });
-  if(e.hair){ const hm=lam(e.hair);
-    const top=new T.Mesh(rbox(.212*k,.075*k,.232*k,.035*k),hm); top.position.set(0,.096*k,-.006*k); m.add(top);
-    const back=new T.Mesh(rbox(.21*k,.13*k,.05*k,.02*k),hm); back.position.set(0,.03*k,-.098*k); m.add(back); }
-  if(e.shades){ const gl=new T.Mesh(rbox(.2*k,.048*k,.02*k,.01*k),glassesMat); gl.position.set(0,.02*k,.12*k); m.add(gl); }
-  if(e.stache){ const st=new T.Mesh(rbox(.074*k,.016*k,.014*k,.005*k),lam(e.hair||0x1a1008)); st.position.set(0,-.04*k,.117*k); m.add(st); }
-  if(e.hat) m.add(hatMesh(e.hat,e.hatCol,k));
-  if(!dead) e.face=face;
-  return m;
-}
-const faceMats={}; for(const k in FACE_SET){ const t=drawFace(FACE_SET[k]); faceMats[k]=new T.MeshLambertMaterial({map:t,emissiveMap:t,emissive:0x3a3632,alphaTest:.4}); }
+const { faceMats, buildHead, setExpr } = createFaces(kit, { dressHead(m,e,k){ if(e.hat) m.add(hatMesh(e.hat,e.hatCol,k)); } });
 let enemies=[], hittables=[];
 
-function part(parent,w,h,d,x,y,z,mat,e,name,side){
-  const m=new T.Mesh(boxGeo(w,h,d),mat); m.position.set(x,y,z); m.userData={enemy:e,part:name,side}; parent.add(m); e.hits.push(m); return m;
-}
-function mark(parent,x,y,z){ const o=new T.Object3D(); o.position.set(x,y,z); parent.add(o); return o; }
 function pickDoor(){
   vA.copy(headDir); vA.y=0; vA.normalize();
   const far=DOORS.filter(d=>Math.hypot(d.x-headPos.x,d.z-headPos.z)+Math.abs(d.y-rig.position.y)>6);
@@ -825,33 +723,8 @@ function spawnEnemy(kind,dummy,door){
   const inner=new T.Group(); inner.scale.setScalar(s); g.add(inner);
   const M=e.mats; M.sleeve=(_o.short!==undefined?_o.short:kind==='rusher')?M.skin:M.top;
   dressHead(e,kind);
-  const hit=(mesh,parent,x,y,z,name,side)=>{ mesh.position.set(x,y,z); mesh.userData={enemy:e,part:name,side}; parent.add(mesh); e.hits.push(mesh); return mesh; };
-  const deco=(mesh,parent,x,y,z)=>{ mesh.position.set(x,y,z); parent.add(mesh); return mesh; };
-  const mkLeg=(sx,sd)=>{ const leg=new T.Group(); leg.position.set(sx*.1,.86,0); inner.add(leg);
-    hit(new T.Mesh(capGeo(.078,.44),M.pants),leg,0,-.21,0,'leg',sd);
-    const shin=new T.Group(); shin.position.y=-.42; leg.add(shin);
-    hit(new T.Mesh(capGeo(.062,.42),M.pants),shin,0,-.2,0,'leg',sd);
-    hit(new T.Mesh(rbox(.1,.08,.25,.03),shoeMat),shin,0,-.41,.045,'leg',sd);
-    return [leg,shin]; };
-  const [legL,shinL]=mkLeg(-1,'L'), [legR,shinR]=mkLeg(1,'R');
-  const torso=new T.Group(); torso.position.y=.86; inner.add(torso);
-  hit(new T.Mesh(rbox(.33,.2,.22,.07),M.pants),torso,0,.02,0,'body','');
-  deco(new T.Mesh(rbox(.335,.04,.225,.015),beltMat),torso,0,.12,0);
-  hit(new T.Mesh(chestGeo(),M.top),torso,0,.36,0,'body','');
-  deco(new T.Mesh(cylGeo(.055,.14),M.skin),torso,0,.64,0);
-  if(MIAMI){ if(def.shirt) deco(new T.Mesh(rbox(.1,.2,.012,.004),lam(def.shirt[Math.floor(Math.random()*def.shirt.length)])),torso,0,.5,.112);
-    else deco(new T.Mesh(rbox(.09,.12,.01,.004),M.skin),torso,0,.54,.112);
-    const ch=deco(new T.Mesh(chainGeo,goldMat),torso,0,.6,.02); ch.rotation.x=Math.PI/2-.45; }
-  const mkArm=(sx,sd)=>{ const arm=new T.Group(); arm.position.set(sx*.245,.55,0); torso.add(arm);
-    deco(new T.Mesh(sphGeo(.068),M.sleeve),arm,0,0,0);
-    hit(new T.Mesh(capGeo(.056,.32),M.sleeve),arm,0,-.15,0,'arm',sd);
-    const fore=new T.Group(); fore.position.y=-.3; arm.add(fore);
-    hit(new T.Mesh(capGeo(.047,.3),M.sleeve),fore,0,-.14,0,'arm',sd);
-    hit(new T.Mesh(rbox(.075,.1,.035,.015),M.skin),fore,0,-.33,0,'arm',sd);
-    return [arm,fore]; };
-  const [armL,foreL]=mkArm(-1,'L'), [armR,foreR]=mkArm(1,'R');
-  const head=new T.Group(); head.position.y=.68; torso.add(head);
-  hit(buildHead(e,1,false),head,0,.13,0,'head','');
+  const J=buildBody(e,inner,kit,buildHead);
+  const { legL,shinL,legR,shinR,torso,armL,foreL,armR,foreR,head } = J;
   Object.assign(e,{expr:'neutral',blinkT:1+Math.random()*3,scaredT:0,los:false,losT:Math.random()*.3});
   let muzzle=null, glint=null;
   if(kind!=='rusher'){
@@ -861,13 +734,8 @@ function spawnEnemy(kind,dummy,door){
     glint.scale.setScalar(.3); glint.visible=false; muzzle.add(glint);
   } else if(MIAMI){ const bat=new T.Mesh(batGeo,batMat); bat.position.set(0,-.34,.02); bat.rotation.x=1.15; foreR.add(bat); }
   dressExtras(e,torso,head,foreR,kind);
-  e.marks=[ mark(head,0,.255,0), mark(torso,0,.66,0), mark(torso,0,.02,0),
-    mark(armL,0,0,0), mark(foreL,0,0,0), mark(foreL,0,-.32,0),
-    mark(armR,0,0,0), mark(foreR,0,0,0), mark(foreR,0,-.32,0),
-    mark(legL,0,0,0), mark(shinL,0,0,0), mark(shinL,0,-.42,0),
-    mark(legR,0,0,0), mark(shinR,0,0,0), mark(shinR,0,-.42,0) ];
-  Object.assign(e,{inner,legL,legR,shinL,shinR,torso,armL,armR,foreL,foreR,head,muzzle,glint,downed:false,stunT:0,
-    re:{tx:0,vx:0,ty:0,vy:0,tz:0,vz:0,aL:0,vaL:0,aR:0,vaR:0,kn:0,vkn:0}, legHurt:{L:0,R:0}, armHurt:{L:false,R:false}, gutHurt:false});
+  e.marks=bodyMarks(J,mark);
+  Object.assign(e,{inner,legL,legR,shinL,shinR,torso,armL,armR,foreL,foreR,head,muzzle,glint},bodyState());
   mergeEnemy(e);
   scene.add(g); hittables.push(...e.hits); enemies.push(e); return e;
 }
@@ -879,7 +747,6 @@ function clearEnemies(){ enemies.slice().forEach(removeEnemy); }
 function spawnDummies(){ clearEnemies(); ['shooter','rusher','heavy','shooter','shooter'].forEach(k=>spawnEnemy(k,true)); }
 
 const eyeV=new T.Vector3(), goalV=new T.Vector3();
-function setExpr(e,ex){ if(ex!==e.expr){ e.expr=ex; e.face.material=faceMats[ex]; } }
 /* ---------- outfits: each level dresses its own crew ---------- */
 let _o={};
 const pick=a=>Array.isArray(a)?a[Math.floor(Math.random()*a.length)]:a;
@@ -1443,280 +1310,27 @@ function updateEnemy(e,dt){
   if(!e.perch){ const gy=groundAt(p.x,p.z,p.y); p.y+=(gy-p.y)*Math.min(1,dt*12); }
   e.group.rotation.y=(!e.alert&&!e.dummy&&!moving)?e.idleYaw:(moving&&(!direct||e.detouring))?Math.atan2(gx,gz):Math.atan2(dx,dz);
   if(dt>0) e.vel.set((p.x-ox)/dt,0,(p.z-oz)/dt);
-  e.flinch=Math.max(0,e.flinch-dt*4);
-  e.swing=Math.max(0,(e.swing||0)-dt*3);
-  const gunUp=e.kind!=='rusher' && active && !moving ? (e.armHurt.R?.55:1) : 0;
-  e.aim+=(gunUp-e.aim)*Math.min(1,dt*6);
-  if(moving){
-    e.walk+=dt*(e.kind==='rusher'?11:6.5); const sw=Math.sin(e.walk)*.6;
-    e.legL.rotation.x=sw; e.legR.rotation.x=-sw;
-    e.armL.rotation.x=e.kind==='rusher'?-1.2+sw*.3:-sw*.8;
-    e.armR.rotation.x=e.kind==='rusher'?-1.2-sw*.3:sw*.8;
-    e.torso.position.y=.86+Math.abs(Math.cos(e.walk))*.04;
-  } else {
-    e.legL.rotation.x*=.85; e.legR.rotation.x*=.85; e.torso.position.y=.86;
-    e.armL.rotation.x=e.kind==='rusher'?-1.1-e.swing*.9:-.15;
-    e.armR.rotation.x=e.kind==='rusher'?-1.1-e.swing*1.2:-.1-e.aim*1.45-e.swing*1.6;
-  }
-  const kb=moving?1:0; e.shinL.rotation.x=kb*Math.max(0,Math.sin(e.walk+1.3))*.95; e.shinR.rotation.x=kb*Math.max(0,Math.sin(e.walk+1.3+Math.PI))*.95;
-  e.foreL.rotation.x=e.kind==='rusher'&&moving?-.9:-.32; e.foreR.rotation.x=e.kind==='rusher'&&moving?-.9:-.32*(1-e.aim)-e.swing*.4;
-  // lasting damage: a limp on a hurt leg, a dead arm, a hand pressed to a gut wound
-  let dip=0;
-  if(limp&&moving){ const hs=e.legHurt.L?1:-1; dip=Math.max(0,Math.sin(e.walk)*hs)*.08; (e.legHurt.L?e.legL:e.legR).rotation.x*=.4; }
-  if(e.armHurt.L){ e.armL.rotation.x=e.armL.rotation.x*.25+.12+Math.sin(tAll*2+e.strafe)*.05; e.foreL.rotation.x=-.08; }
-  if(e.armHurt.R&&e.kind==='rusher'){ e.armR.rotation.x=.12; e.foreR.rotation.x=-.08; }
-  const clutch=e.gutHurt&&!e.armHurt.L;
-  if(clutch){ e.armL.rotation.x=-.5; e.foreL.rotation.x=-1.55; }
-  e.armL.rotation.z=clutch?.42:0; e.armR.rotation.z=0; e.head.rotation.x=0;
-  let tx=-e.flinch*.15+(e.gutHurt?.26:0), ty=0, tz=0, drop=dip;
-  // a fresh wound: a big pose that snaps in, holds, and eases back out
-  const rc=e.react;
-  if(rc){ rc.t+=dt; const k=rc.t/rc.dur;
-    if(k>=1) e.react=null;
-    else { const a=k<.1?k/.1:k<.35?1:Math.pow(1-(k-.35)/.65,1.5), sd=rc.side==='L'?-1:1, mix=(o,v)=>o*(1-a)+v*a;
-      if(rc.type==='gut'){ tx+=1.05*a; drop+=.12*a; e.head.rotation.x=.4*a;
-        e.armL.rotation.x=mix(e.armL.rotation.x,-.75); e.armR.rotation.x=mix(e.armR.rotation.x,-.75); e.armL.rotation.z=.55*a; e.armR.rotation.z=-.55*a;
-        e.foreL.rotation.x=mix(e.foreL.rotation.x,-1.45); e.foreR.rotation.x=mix(e.foreR.rotation.x,-1.45);
-        e.legL.rotation.x=mix(e.legL.rotation.x,-.3); e.legR.rotation.x=mix(e.legR.rotation.x,-.3); e.shinL.rotation.x=mix(e.shinL.rotation.x,.6); e.shinR.rotation.x=mix(e.shinR.rotation.x,.6); }
-      if(rc.type==='chest'){ tx-=.65*a; ty+=rc.sx*.4*a; e.head.rotation.x=-.65*a; e.armL.rotation.z=-1*a; e.armR.rotation.z=1*a;
-        e.armL.rotation.x=mix(e.armL.rotation.x,.6); e.armR.rotation.x=mix(e.armR.rotation.x,.6); e.legL.rotation.x=mix(e.legL.rotation.x,.25); }
-      if(rc.type==='arm'){ const arm=rc.side==='L'?e.armL:e.armR, fore=rc.side==='L'?e.foreL:e.foreR;
-        arm.rotation.x=mix(arm.rotation.x,1.6); arm.rotation.z=sd*.8*a; fore.rotation.x=mix(fore.rotation.x,0); ty+=sd*.85*a; tz-=sd*.18*a; e.head.rotation.x=-.2*a; }
-      if(rc.type==='leg'){ // down onto the hurt knee, a hand on the leg
-        const hl=rc.side==='L', thH=hl?e.legL:e.legR, shH=hl?e.shinL:e.shinR, thO=hl?e.legR:e.legL, shO=hl?e.shinR:e.shinL, hand=hl?e.armL:e.armR, fore=hl?e.foreL:e.foreR;
-        drop+=.42*a; thH.rotation.x=mix(thH.rotation.x,-.1); shH.rotation.x=mix(shH.rotation.x,1.6); thO.rotation.x=mix(thO.rotation.x,-1.3); shO.rotation.x=mix(shO.rotation.x,1.35);
-        tx+=.35*a; hand.rotation.x=mix(hand.rotation.x,-.35); hand.rotation.z=(hl?.25:-.25)*a; fore.rotation.x=mix(fore.rotation.x,-.6); e.head.rotation.x=.3*a; }
-    } }
-  e.inner.position.y=-drop;
-  if(e.dodgeT>0) tz+=e.dodgeSd*.45;
-  e.torso.rotation.x=tx; e.torso.rotation.y=ty; e.torso.rotation.z=tz;
-  if(e.glint){ e.glint.visible=e.aiming; if(e.aiming) e.glint.scale.setScalar(.2+Math.abs(Math.sin(tAll*30))*.25); }
+  poseBody(e,dt,tAll,moving,active,limp);
   // idle: a smoke, the ember glowing on the drag
   if(!e.alert && !e.dummy && e.idle==='smoke'){ const ph=(tAll*.45+e.strafe)%3.2; if(ph<1.2){ const k=Math.sin(ph/1.2*Math.PI); e.armL.rotation.x=-.15-1.75*k; e.foreL.rotation.x=-.32-1.7*k; e.armL.rotation.z=-.3*k; }
     if(e.cig) e.cig.material.color.setHex(ph>.5&&ph<1.1?0xffa040:0xb03010); }
-  // expression
-  e.scaredT-=dt; e.blinkT-=dt; if(e.blinkT<=-.12) e.blinkT=2+Math.random()*3.5;
-  let ex;
-  if(e.flinch>.25||e.stunT>0) ex='pain';
-  else if(e.scaredT>0) ex='scared';
-  else if(e.kind==='rusher' && moving && active) ex='scream';
-  else if(active && (e.aiming||e.los)) ex='angry';
-  else ex='neutral';
-  if((ex==='neutral'||ex==='angry') && e.blinkT<0) ex+='_blink';
-  setExpr(e,ex);
+  faceExpression(e,dt,moving,active,setExpr);
 }
 
 /* ---------- ragdolls (verlet) ---------- */
-// joints: 0 head top,1 neck,2 pelvis,3 shL,4 elL,5 haL,6 shR,7 elR,8 haR,9 hipL,10 knL,11 ftL,12 hipR,13 knR,14 ftR
-const RAG_CONS=[[0,1],[0,3],[0,6],[1,3],[1,6],[3,6],[1,2],[2,9],[2,12],[9,12],[3,9],[6,12],[3,12],[6,9],
-  [3,4],[4,5],[6,7],[7,8],[9,10],[10,11],[12,13],[13,14]];
-const RAG_MIN=[[5,3,.55],[8,6,.55],[11,9,.6],[14,12,.6],[0,2,.85],[10,2,.7],[13,2,.7]];
-const RAG_SEGS=[ // a,b,radius,material,part,side
-  [1,0,0,'skin','head',''],
-  [3,4,.056,'sleeve','arm','L'],[4,5,.047,'sleeve','arm','L'],
-  [6,7,.056,'sleeve','arm','R'],[7,8,.047,'sleeve','arm','R'],
-  [9,10,.078,'pants','leg','L'],[10,11,.062,'pants','leg','L'],
-  [12,13,.078,'pants','leg','R'],[13,14,.062,'pants','leg','R']];
-const SEVER={ head:{at:1,sub:[0],from:2}, armL:{at:3,sub:[4,5],from:6}, armR:{at:6,sub:[7,8],from:3}, legL:{at:9,sub:[10,11],from:12}, legR:{at:12,sub:[13,14],from:9} };
-const SIM_H=1/120, GRAV=-9.8;
-let ragdolls=[];
-const Y=new T.Vector3(0,1,0), bx=new T.Vector3(), by=new T.Vector3(), bz=new T.Vector3(), basis=new T.Matrix4();
-
-function makeRagdoll(e,hitPoint,dir,partName,side,force,living){
-  e.group.updateMatrixWorld(true);
-  const s=e.s||e.def.scale;
-  const pts=e.marks.map(m=>{ const c=m.getWorldPosition(new T.Vector3()); return {c,o:c.clone().addScaledVector(e.vel,-SIM_H)}; });
-  const cons=RAG_CONS.map(([a,b])=>({a,b,rest:pts[a].c.distanceTo(pts[b].c)}));
-  RAG_MIN.forEach(([a,b,k])=>cons.push({a,b,rest:pts[a].c.distanceTo(pts[b].c)*k,min:true}));
-  const g=new T.Group(); scene.add(g);
-  const r={pts,cons,segs:[],g,asleep:false,still:0,age:0,acc:0,headOn:true,severed:new Set(),emitters:[],stumps:[],puddle:false,s};
-  RAG_SEGS.forEach(([a,b,rad,mk,pn,sd])=>{
-    const len=Math.max(.05,pts[a].c.distanceTo(pts[b].c));
-    const m=pn==='head'?buildHead(e,s,!living):new T.Mesh(capGeo(rad*s,len),e.mats[mk]);
-    m.userData={rag:r,part:pn,side:sd}; g.add(m);
-    if(b===5||b===8){ const hd=new T.Mesh(rbox(.075*s,.1*s,.035*s,.015*s),e.mats.skin); hd.position.y=len/2+.035*s; m.add(hd);
-      if(b===8&&e.kind!=='rusher'){ const [gg,gy]=ENEMY_GUN[e.kind]; const gn=new T.Mesh(gg,gunMat); gn.position.y=len/2+(-gy-.3)*s; m.add(gn); } }
-    if(b===11||b===14){ const sh=new T.Mesh(rbox(.1*s,.08*s,.25*s,.03*s),shoeMat); sh.position.set(0,len/2+.01*s,.045*s); m.add(sh); }
-    r.segs.push({a,b,m,part:pn,side:sd});
-  });
-  r.torso=new T.Mesh(torsoRagGeo(s),e.mats.top); r.torso.userData={rag:r,part:'body',side:''}; g.add(r.torso);
-  { const pv=new T.Mesh(rbox(.33*s,.2*s,.22*s,.07*s),e.mats.pants); pv.position.y=-.255*s; r.torso.add(pv);
-    const bl=new T.Mesh(rbox(.335*s,.04*s,.225*s,.015*s),beltMat); bl.position.y=-.155*s; r.torso.add(bl);
-    const nk=new T.Mesh(cylGeo(.055*s,.14*s),e.mats.skin); nk.position.y=.355*s; r.torso.add(nk); }
-  hittables.push(r.torso,...r.segs.map(x=>x.m));
-  ragdolls.push(r);
-  impulse(r,hitPoint,dir,force);
-  // knees buckle forward and the hips drop, so a body never stays balanced on its feet
-  { const ry=e.group.rotation.y, fx=Math.sin(ry), fz=Math.cos(ry), kb=(1.6+Math.random())*SIM_H;
-    [10,13].forEach(i=>{ pts[i].o.x-=fx*kb; pts[i].o.z-=fz*kb; });
-    pts[2].o.y+=.9*SIM_H; pts[2].o.x+=fx*.5*SIM_H; pts[2].o.z+=fz*.5*SIM_H; }
-  if(living) makeLiving(r,e,partName,side,hitPoint);
-  else if(partName==='head') sever(r,'head',dir);
-  else if((partName==='arm'||partName==='leg') && Math.random()<(forceMul>1.5?.85:.45)) sever(r,partName+side,dir);
-  else if(partName==='body' && forceMul>1.5 && Math.random()<.35) sever(r,Math.random()<.5?'armL':'armR',dir);
-  if(ragdolls.length>14){ const old=ragdolls.find(x=>!x.living); if(old) removeRagdoll(old); }
-  renderRagdoll(r);
-  return r;
-}
-// a downed body is still a ragdoll, but it has muscles: it clutches its wound, kicks, claws itself along, tries to roll over
-const mA=new T.Vector3(), mB=new T.Vector3(), mUp=new T.Vector3(), mR=new T.Vector3(), mF=new T.Vector3(), mD=new T.Vector3(), mC=new T.Vector3();
-const WOUND={ legL:[9,10,.55], legR:[12,13,.55], armL:[3,4,.6], armR:[6,7,.6], gut:[2,1,.3], chest:[1,2,.3] };
-function push(p,v,dv){ p.o.x-=v.x*dv; p.o.y-=v.y*dv; p.o.z-=v.z*dv; }              // add a velocity change (m/s * step)
-function accel(p,v,a){ const k=a*SIM_H*SIM_H; p.o.x-=v.x*k; p.o.y-=v.y*k; p.o.z-=v.z*k; }
-function pullTo(p,t,k){ const q=k*SIM_H*SIM_H; p.o.x-=(t.x-p.c.x)*q; p.o.y-=(t.y-p.c.y)*q; p.o.z-=(t.z-p.c.z)*q; }
-function damp(p,a){ p.o.x+=(p.c.x-p.o.x)*a; p.o.y+=(p.c.y-p.o.y)*a; p.o.z+=(p.c.z-p.o.z)*a; }
-function makeLiving(r,e,partName,side,hitPoint){
-  const lp=e.inner.worldToLocal(hitPoint.clone());
-  const key=partName==='leg'?'leg'+side:partName==='arm'?'arm'+side:(lp.y<1.16?'gut':'chest');
-  const armOut=partName==='arm'?side:null;
-  r.living={ age:0, bleed:10+Math.random()*8, cT:Math.random(), moanT:.5, trailT:.3, faceT:0, rollT:1.5+Math.random(),
-    w:WOUND[key], key, clutch:armOut==='L'?8:5, crawlHands:armOut==='L'?[8]:armOut==='R'?[5]:[5,8], reach:0,
-    mode:Math.random()<.65?'crawl':'writhe', crawlAway:Math.random()<.45, pitch:(e.kind==='heavy'?80:105)+Math.random()*30 };
-  r.face=e.face; r.face.material=faceMats.agony;
-  // the fall depends on the wound
-  const P=r.pts, ry=e.group.rotation.y; mF.set(Math.sin(ry),0,Math.cos(ry)); const h=SIM_H;
-  if(partName==='leg'){ const kn=side==='L'?10:13, hip=side==='L'?9:12; push(P[kn],mF,2.6*h); push(P[hip],UP,-1.2*h); push(P[2],UP,-.8*h); }
-  else if(key==='gut'){ push(P[0],mF,2.2*h); push(P[1],mF,1.8*h); push(P[2],mF,-.9*h); [10,13].forEach(i=>push(P[i],mF,1.4*h)); }
-  else if(key==='chest'){ push(P[0],mF,-1.6*h); push(P[1],mF,-1.4*h); [10,13].forEach(i=>push(P[i],mF,1.2*h)); }
-  else { const sh=side==='L'?3:6; push(P[sh],mF,-2.2*h); [10,13].forEach(i=>push(P[i],mF,1.3*h)); }
-}
-function muscles(r){
-  const L=r.living, P=r.pts, life=Math.max(0,Math.min(1,L.bleed/7)), str=.3+.7*life;
-  if(L.age<.8) return;                                    // the fall itself is pure physics
-  mUp.copy(P[1].c).sub(P[2].c).normalize(); mR.copy(P[6].c).sub(P[3].c).normalize(); mF.crossVectors(mR,mUp).normalize();
-  const prone=mF.y<-.3, supine=mF.y>.3;
-  // the wound, on the front of the body
-  mA.copy(P[L.w[0]].c).lerp(P[L.w[1]].c,L.w[2]).addScaledVector(mF,.09);
-  const crawling=prone && L.mode==='crawl' && L.age>1.8;
-  const reachHand=crawling?L.crawlHands[L.reach%L.crawlHands.length]:-1;
-  // one hand (both when not crawling) presses on the wound
-  [L.clutch, L.crawlHands.length>1?8:-1].forEach((hd,k)=>{ if(hd<0||hd===reachHand||(k===1&&crawling)) return; if(hd===L.clutch||!crawling){
-    mB.copy(mA).addScaledVector(mR,(hd===5?-1:1)*.05); pullTo(P[hd],mB,170*str); damp(P[hd],.12); } });
-  // kicks and squirming
-  if(Math.random()<.01*str){ const i=[10,11,13,14][Math.floor(Math.random()*4)]; mD.randomDirection(); mD.y=Math.abs(mD.y)*.6; push(P[i],mD,2.2*str*SIM_H); }
-  if(Math.random()<.004*str){ mD.copy(mR).multiplyScalar(Math.random()<.5?1:-1); push(P[1],mD,1.2*str*SIM_H); }
-  // head lifts to look around
-  if(prone||supine) accel(P[0],UP,13*str);
-  if(crawling){
-    // hand over hand: reach ahead and plant, then haul the body toward the planted hand
-    mC.set(headPos.x-P[2].c.x,0,headPos.z-P[2].c.z).normalize(); if(L.crawlAway) mC.negate();
-    mD.set(mUp.x,0,mUp.z).normalize().lerp(mC,.45).normalize();
-    const hd=P[reachHand], ph=L.cT%1.1;
-    if(ph<.5){ mB.copy(P[1].c).addScaledVector(mD,.55); mB.y=groundAt(mB.x,mB.z,P[1].c.y)+.06; pullTo(hd,mB,260*str); damp(hd,.1); }
-    else { hd.o.copy(hd.c); accel(P[1],mD,10*str); accel(P[3],mD,8*str); accel(P[6],mD,8*str); accel(P[2],mD,4.5*str); accel(P[1],UP,4*str); }
-  } else if(supine && L.age>2){
-    // on its back: try to roll over every few seconds
-    const ph=L.rollT%3.2;
-    if(ph<.55){ const sh=Math.floor(L.rollT/3.2)%2?3:6, other=sh===3?6:3; mD.copy(P[other].c).sub(P[sh].c).normalize();
-      accel(P[sh],UP,26*str); accel(P[sh],mD,14*str); accel(sh===3?P[9]:P[12],mD,8*str); }
-  }
-}
-function livingTick(r,dt){
-  const L=r.living, P=r.pts; L.age+=dt; L.bleed-=dt; L.cT+=dt; L.rollT+=dt;
-  if(L.cT%1.1<dt) L.reach++;
-  r.asleep=false; r.still=0; unbakeRag(r);
-  const life=Math.max(0,Math.min(1,L.bleed/7)), pv=P[2].c, d=Math.hypot(Math.hypot(headPos.x-pv.x,headPos.z-pv.z),headPos.y-pv.y);
-  L.faceT-=dt;
-  if(L.faceT<=0){ L.faceT=.5+Math.random()*1.2; r.face.material=faceMats[d<2.6&&!L.crawlAway&&Math.random()<.5?'plead':Math.random()<.65?'agony':'pain']; }
-  L.moanT-=dt;
-  if(L.moanT<=0){ L.moanT=(1.3+Math.random()*2)*(1.6-life*.6); sfxMoan(d,L.pitch*(.85+life*.15),pv.clone()); }
-  L.trailT-=dt;
-  if(L.trailT<=0){ L.trailT=.5+Math.random()*.4; decal(pv,UP,.2+Math.random()*.22,1.5,'pool'); }
-  if(Math.random()<dt*4){ mA.copy(P[L.w[0]].c).lerp(P[L.w[1]].c,L.w[2]); spray(mA,UP,1,.7,.8); }
-  if(L.bleed<=0){ r.living=null; r.face.material=faceMats.dead; r.twitchT=.9; checkWaveClear(); }
-}
+const { ragdolls, makeRagdoll, removeRagdoll, impulse, sever, updateRagdoll, SIM_H } = createRagdolls({
+  scene, headPos, groundAt, pushOut, buildHead, faceMats, capGeo, rbox, cylGeo, boxGeo, torsoRagGeo, shoeMat, beltMat, stumpMat, gunMat, ENEMY_GUN,
+  decal, spray, mist, sfxMoan, sfxCrunch, sfxSpurt, bakeRag, unbakeRag,
+  addHittables:(...ms)=>hittables.push(...ms), removeHittables:set=>{ hittables=hittables.filter(h=>!set.has(h)); },
+  forceMul:()=>forceMul, onBledOut:()=>checkWaveClear() });
+const Y=new T.Vector3(0,1,0); // world up, for the heavy's spread shot
+// finishing a downed enemy off scores
 function finishLiving(r,point){
   if(!r.living) return;
   r.living=null; r.face.material=faceMats.dead; r.twitchT=.4;
   const pts=50*mult(); score+=pts; hudDirty=true; sfxThud();
   popup(point.clone().add(new T.Vector3(0,.3,0)),'FINISHED','+'+pts,'#e9e7e2',.9,1);
   checkWaveClear();
-}
-function removeRagdoll(r){ if(r.baked){ scene.remove(r.baked); r.baked.traverse(o=>{ if(o.geometry) o.geometry.dispose(); }); r.baked=null; }
-  scene.remove(r.g); ragdolls=ragdolls.filter(x=>x!==r);
-  const set=new Set([r.torso,...r.segs.map(s=>s.m)]); hittables=hittables.filter(h=>!set.has(h));
-}
-function impulse(r,point,dir,strength){
-  r.asleep=false; r.still=0; unbakeRag(r);
-  r.pts.forEach(p=>{ const w=Math.max(0,1-p.c.distanceTo(point)/.55); const k=strength*(.12+w*.88)*SIM_H;
-    p.o.x-=dir.x*k; p.o.y-=(dir.y*.5-.15*w)*k; p.o.z-=dir.z*k; });
-}
-function sever(r,key,dir){
-  if(r.severed.has(key)) return false;
-  const S=SEVER[key], sub=new Set(S.sub), at=S.at;
-  r.severed.add(key);
-  const np=r.pts.length, src=r.pts[at]; r.pts.push({c:src.c.clone(),o:src.o.clone()});
-  r.cons=r.cons.filter(c=>{
-    const ia=sub.has(c.a), ib=sub.has(c.b); if(ia===ib) return true;
-    if(c.a===at&&ib){ c.a=np; return true; } if(c.b===at&&ia){ c.b=np; return true; } return false; });
-  r.segs.forEach(sg=>{ if(sg.a===at&&sub.has(sg.b)) sg.a=np; if(sg.b===at&&sub.has(sg.a)) sg.b=np; });
-  const kick=(key==='head'?7.5:5)*SIM_H;
-  [...S.sub,np].forEach(i=>{ const p=r.pts[i]; p.o.x-=dir.x*kick; p.o.z-=dir.z*kick; p.o.y-=(key==='head'?3:1.5)*SIM_H; });
-  [at,np].forEach(i=>{ const m=new T.Mesh(boxGeo(.12*r.s,.12*r.s,.12*r.s),stumpMat); r.g.add(m); r.stumps.push({i,m}); });
-  r.emitters.push({i:at,from:S.from,life:key==='head'?2.2:1.4,acc:0});
-  r.emitters.push({i:np,from:S.sub[0],life:.8,acc:0});
-  if(key==='head') r.headOn=false;
-  spray(r.pts[at].c,vA.copy(dir).negate().add(Y),26,4,.6); mist(r.pts[at].c,.7);
-  sfxCrunch(); sfxSpurt();
-  r.asleep=false; r.still=0; unbakeRag(r);
-  return true;
-}
-function stepRag(r){
-  if(r.living) muscles(r);
-  else if(r.twitchT>0 && Math.random()<.06){ const p=r.pts[[4,5,7,8,10,11,13,14][Math.floor(Math.random()*8)]]; mD.randomDirection(); push(p,mD,.9*Math.min(1,r.twitchT)*SIM_H); }
-  const P=r.pts, g=GRAV*SIM_H*SIM_H;
-  for(let i=0;i<P.length;i++){ const p=P[i];
-    const vx=(p.c.x-p.o.x)*.995, vy=(p.c.y-p.o.y)*.995, vz=(p.c.z-p.o.z)*.995;
-    p.o.copy(p.c); p.c.x+=vx; p.c.y+=vy+g; p.c.z+=vz; }
-  for(let it=0;it<8;it++){
-    for(let k=0;k<r.cons.length;k++){ const c=r.cons[k], a=P[c.a].c, b=P[c.b].c;
-      const dx=b.x-a.x, dy=b.y-a.y, dz=b.z-a.z, d=Math.sqrt(dx*dx+dy*dy+dz*dz)||1e-4;
-      if(c.min && d>=c.rest) continue;
-      const f=(d-c.rest)/d*.5; a.x+=dx*f; a.y+=dy*f; a.z+=dz*f; b.x-=dx*f; b.y-=dy*f; b.z-=dz*f; }
-    for(let i=0;i<P.length;i++){ const p=P[i];
-      const gy=groundAt(p.c.x,p.c.z,p.c.y)+.06;
-      if(p.c.y<gy){ p.c.y=gy; p.o.x=p.c.x-(p.c.x-p.o.x)*.55; p.o.z=p.c.z-(p.c.z-p.o.z)*.55; }
-      pushOut(p.c,.06,p.c.y,0); }
-  }
-}
-function orient(m,a,b,rightRef){
-  m.position.copy(a).add(b).multiplyScalar(.5);
-  by.copy(b).sub(a); const len=by.length(); if(len<1e-5) return; by.divideScalar(len);
-  if(rightRef){ bx.copy(rightRef); bx.addScaledVector(by,-bx.dot(by)); if(bx.lengthSq()>1e-6){ bx.normalize(); bz.crossVectors(bx,by); basis.makeBasis(bx,by,bz); m.quaternion.setFromRotationMatrix(basis); return; } }
-  m.quaternion.setFromUnitVectors(Y,by);
-}
-const rightV=new T.Vector3(), negR=new T.Vector3(), tmpA=new T.Vector3(), tmpB=new T.Vector3();
-function renderRagdoll(r){
-  const P=r.pts;
-  rightV.copy(P[6].c).sub(P[3].c);
-  tmpA.copy(P[3].c).add(P[6].c).multiplyScalar(.5); tmpB.copy(P[9].c).add(P[12].c).multiplyScalar(.5);
-  orient(r.torso,tmpB,tmpA,rightV);
-  negR.copy(rightV).negate();
-  r.segs.forEach(sg=>orient(sg.m,P[sg.a].c,P[sg.b].c,sg.part==='head'?(r.headOn?rightV:null):negR));
-  r.stumps.forEach(st=>st.m.position.copy(P[st.i].c));
-}
-function updateRagdoll(r,dt){
-  r.age+=dt;
-  for(let k=r.emitters.length-1;k>=0;k--){ const em=r.emitters[k]; em.life-=dt; em.acc+=dt*(40+em.life*30);
-    const d=vA.copy(r.pts[em.i].c).sub(r.pts[em.from].c).normalize();
-    while(em.acc>=1){ em.acc--; spray(r.pts[em.i].c,d,1,2+Math.random()*2.5*Math.min(1,em.life),.35); }
-    if(em.life<=0) r.emitters.splice(k,1); }
-  if(r.living) livingTick(r,dt);
-  if(r.twitchT>0) r.twitchT-=dt;
-  if(r.asleep) return;
-  r.acc+=dt; let n=0; while(r.acc>=SIM_H&&n<5){ stepRag(r); r.acc-=SIM_H; n++; } if(n===5) r.acc=0;
-  // a body that comes to rest kneeling or sitting tips over
-  if(r.age<5){ const pv=r.pts[2].c, nk=r.pts[1].c, gy=groundAt(pv.x,pv.z,pv.y);
-    if(pv.y-gy>.3*r.s){ if(!r.topple){ const a=Math.random()*6.28; r.topple=new T.Vector3(Math.sin(a),0,Math.cos(a)); }
-      const k=2.4*SIM_H*Math.min(1,dt*20);
-      [[1,1],[0,1],[3,.8],[6,.8],[2,.6]].forEach(([i,w])=>{ r.pts[i].o.x-=r.topple.x*k*w; r.pts[i].o.z-=r.topple.z*k*w; });
-      r.pts[2].o.y+=k*.5; r.still=0; } }
-  let motion=0; r.pts.forEach(p=>{ motion+=Math.abs(p.c.x-p.o.x)+Math.abs(p.c.y-p.o.y)+Math.abs(p.c.z-p.o.z); });
-  if(dt>0 && motion/r.pts.length<.0008) r.still+=dt; else r.still=0;
-  if(r.still>.7 && r.age>1 && !r.living && !(r.twitchT>0)){ r.asleep=true; bakeRag(r);
-    if(!r.puddle){ r.puddle=true; tmpA.copy(r.pts[2].c).add(r.pts[1].c).multiplyScalar(.5); decal(tmpA,UP,.9*r.s+Math.random()*.4,5,'pool');
-      if(!r.headOn){ decal(r.pts[1].c,UP,.6,4,'pool'); decal(r.pts[0].c,UP,.35,3,'pool'); } } }
-  renderRagdoll(r);
 }
 
 /* ---------- enemy projectiles ---------- */
@@ -1905,11 +1519,7 @@ function deskMelee(){
   if(best) setTimeout(()=>{ if(best.e&&!best.e.alive&&!best.e.downed) return; meleeStrike(deskGun,best,tD.clone(),5.5,'right'); },90);
 }
 
-function wound(point,dir,big){
-  spray(point,dir,big?22:12,big?4.5:3.2,.45);
-  spray(point,vA.copy(dir).negate(),big?8:4,1.6,.7);
-  mist(point,big?.6:.35); sfxSplat();
-}
+const { wound, reactToHit, rollDown, deathForce } = createDamage({ spray, mist, sfxSplat, moveEntity });
 function hitEnemy(e,partName,side,point,dir){
   if(e.dummy) return;
   const head=partName==='head'; alertEnemy(e); LS.hits++; hudDirty=true;
@@ -1917,16 +1527,8 @@ function hitEnemy(e,partName,side,point,dir){
   wound(point,dir,head);
   if(e.hp<=0){ killEnemy(e,point,dir,partName,side); return; }
   e.flinch=1;
-  // react to where the round landed
-  const lp=e.inner.worldToLocal(point.clone()), sx=lp.x>=0?1:-1, slow=e.kind==='heavy'?.75:1;
-  vA.set(dir.x,0,dir.z).normalize();
-  if(partName==='body'){ const gut=lp.y<1.16; e.react={type:gut?'gut':'chest',t:0,dur:(gut?1.25:.8)*slow,sx,side:sx<0?'L':'R'}; if(gut) e.gutHurt=true;
-    moveEntity(e.group.position,vA.x*(gut?.3:.5),vA.z*(gut?.3:.5),.35,e.group.position.y); }
-  else if(partName==='arm'){ e.react={type:'arm',t:0,dur:.85*slow,side}; e.armHurt[side]=true; moveEntity(e.group.position,vA.x*.15,vA.z*.15,.35,e.group.position.y); }
-  else if(partName==='leg'){ e.legHurt[side]++;
-    if(e.legHurt.L+e.legHurt.R>=2&&!e.boss){ killEnemy(e,point,dir,partName,side,undefined,true); return; }
-    e.react={type:'leg',t:0,dur:1.5*slow,side}; }
-  if(e.react){ if(e.boss) e.react.dur*=.5; e.stunT=Math.max(e.stunT,e.react.dur*(e.boss?.3:.85)); e.aiming=false; e.fireT=Math.max(e.fireT,e.boss?.4:.9); }
+  // react to where the round landed; a second leg hit puts them down
+  if(reactToHit(e,partName,side,point,dir)){ killEnemy(e,point,dir,partName,side,undefined,true); return; }
   score+=10*mult(); hudDirty=true;
 }
 const STREAK_NAMES={2:'DOUBLE',3:'TRIPLE',5:'RAMPAGE',8:'MASSACRE',12:'BLOODBATH'};
@@ -1936,7 +1538,7 @@ function killEnemy(e,point,dir,partName,side,meleeForce,forceDrop){
   const mvTag=!grounded?'JUMP':''; LS.kills++; if(head) LS.heads++;
   const pts=Math.round(e.def.score*(head?1.5:1)*(melee?1.5:1)*(mvTag?1.5:1)*mult()/10)*10; score+=pts; kills++; hudDirty=true;
   // a non-head shot can leave them alive on the floor
-  const drop=forceDrop || (!melee && !head && forceMul<=1.2 && (partName==='leg'?Math.random()<.6:partName==='body'?Math.random()<.35:partName==='arm'?Math.random()<.2:false));
+  const drop=forceDrop || rollDown(partName,head,melee,forceMul);
   let label=melee?'PISTOL WHIP':head?'HEADSHOT':drop?'DOWN':''; if(mvTag) label=label?label+' · '+mvTag:mvTag;
   popup(point.clone().add(new T.Vector3(0,.25,0)), label||'+'+pts, label?'+'+pts:'', label?'#e9e7e2':'#bdbab3', 1, 1.1);
   if(STREAK_NAMES[streak]){ popupFront(STREAK_NAMES[streak],'×'+mult(),ACCS,1.3,1.4); sfxStreak(); }
@@ -1944,7 +1546,7 @@ function killEnemy(e,point,dir,partName,side,meleeForce,forceDrop){
   bt.meter=Math.min(1,bt.meter+(head?.16:.1)+(mvTag?.08:0));
   if(renderer.xr.isPresenting && lastHand && lastKillHand && lastHand!==lastKillHand && tAll-lastKillT<1.2){ const b=100*mult(); score+=b; popup(point.clone().add(new T.Vector3(0,.6,0)),'AKIMBO','+'+b,ACCS,.9,1.1); }
   lastKillHand=lastHand; lastKillT=tAll;
-  const force=(melee?meleeForce:head?5:(e.kind==='heavy'?4:6.5))*(melee?1:forceMul);
+  const force=deathForce(e,head,meleeForce,forceMul);
   enemies.forEach(o=>{ if(o!==e && !o.dummy && o.kind!=='heavy' && o.group.position.distanceTo(e.group.position)<6) o.scaredT=1.4+Math.random()*.6; });
   removeEnemy(e); if(e.boss) bossDown(e);
   if(drop){ spray(point,dir,16,3.5,.5); mist(point,.5); makeRagdoll(e,point,dir,partName,side,force*.45,true); sfxThud(); dropWeapon(e); checkWaveClear(); return; }
