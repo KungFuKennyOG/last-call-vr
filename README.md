@@ -48,7 +48,7 @@ Both arena maps are built for the Quest 3: the hall is merged into a handful of 
 
 **Play:** https://kungfukennyog.github.io/last-call-vr/campaign/
 
-Seven short themed levels (six plus the original cut of the Tokyo one), three to six minutes each, with slower, Max Payne-style movement: you walk (no jumping or dashing), dive sideways in slow motion, and use bullet time. Enemies stand around, smoke and patrol until they see or hear you. Doors open when you walk into them and knock down whoever's behind. Each level ends with a boss and a rating.
+Seven short themed levels (six plus the original cut of the Tokyo one), three to six minutes each, with slower, Max Payne-style movement: you walk, hop with a small jump (no dashing), and use bullet time. Enemies stand around, smoke and patrol until they see or hear you. Doors open when you walk into them and knock down whoever's behind. Each level ends with a boss and a rating.
 
 | | Level | Setting |
 |---|---|---|
@@ -65,13 +65,13 @@ Seven short themed levels (six plus the original cut of the Tokyo one), three to
 | Trigger | Fire (hold for full-auto with the Uzi / Tommy gun) |
 | Left stick | Walk |
 | Right stick | Snap turn 30° |
-| A or X | Slow-motion dive (sideways, or the way you're pushing the stick). Turn off **Dive drop** on the title screen to keep your eye height fixed during the dive |
+| A or X | Small jump (about half a metre, with a little air steering) |
 | Y, or click the right stick | Bullet time |
 | B, or grip with nothing in reach | Throw the gun in your hand (stuns; aims itself a little) |
 | Grip near a weapon | Pick it up |
 | Point a gun at the floor | Reload |
 
-Browser: `WASD` walk, `Space` dive, `E` bullet time, `G` throw, `F` melee, `R` reload, `Enter` to continue.
+Browser: `WASD` walk, `Space` jump, `E` bullet time, `G` throw, `F` melee, `R` reload, `Enter` to continue.
 
 Built for the Quest 3: static scenery is merged into a handful of draws, each enemy's body parts are merged per joint, corpses that stop moving are baked flat, blood, sparks, smoke, fire, decals, doves and rain are all instanced or batched, and the level lights stay at a handful. The busiest view in any level is around 150 draw calls per eye. Your frame rate shows in the corner of the wrist screen (it turns red under 65).
 

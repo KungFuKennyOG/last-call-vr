@@ -87,13 +87,12 @@ dl.how dd{margin:0;min-width:0;color:var(--muted)}
       <button id="vrBtn" type="button">Enter VR</button>
       <button id="deskBtn" class="ghost" type="button">Play in browser</button>
       <button id="musicBtn" class="ghost" type="button">Music: on</button>
-      <button id="dropBtn" class="ghost" type="button" aria-pressed="true">Dive drop: on</button>
     </div>
     <p class="note" id="vrNote">Checking for a headset…</p>
     <dl class="how">
       <dt>Trigger</dt><dd>Fire. One pistol per hand. Point a gun at the floor to reload.</dd>
       <dt>Move</dt><dd>Left stick walks. Right stick snap-turns. Doors open when you walk into them, and anyone behind goes down.</dd>
-      <dt>Dive</dt><dd>A or X: a slow-motion dive sideways (or wherever you're pushing the stick). Harder to hit while you're in the air. If the drop toward the floor bothers you, turn off Dive drop: the dive stays, your eye height doesn't move.</dd>
+      <dt>Jump</dt><dd>A or X: a small hop. You can steer a little in the air. Enough to clear low cover, not enough to fly.</dd>
       <dt>Bullet time</dt><dd>Y or click the right stick. Kills refill it.</dd>
       <dt>Throw</dt><dd>B, or grip with nothing in reach, throws the Uzi or shotgun in your hand. A gun to the face stuns, and the counter on top shows what's left in it.</dd>
       <dt>Health</dt><dd>Walk over the bottles and kits.</dd>
@@ -110,7 +109,7 @@ dl.how dd{margin:0;min-width:0;color:var(--muted)}
   <div><small>BULLET TIME · E</small><span class="v" id="hBT">100%</span></div>
   <div id="hBossW" hidden><small id="hBossN">BOSS</small><div class="bar"><div id="hBossBar"></div></div></div>
 </div>
-<div id="keys" hidden>WASD WALK · SPACE DIVE · E BULLET TIME · G THROW · CLICK FIRE · F MELEE · R RELOAD · ENTER CONTINUE · M MUSIC</div>
+<div id="keys" hidden>WASD WALK · SPACE JUMP · E BULLET TIME · G THROW · CLICK FIRE · F MELEE · R RELOAD · ENTER CONTINUE · M MUSIC</div>
 <div id="cross" hidden></div>
 <div id="pause" hidden><button id="resumeBtn" type="button">Paused · Resume</button></div>
 
@@ -663,7 +662,7 @@ tunnel.position.z=-.1; tunnel.renderOrder=998; tunnel.visible=false; camera.add(
 const MAX_HP=8, MAG=12;
 let state='idle', mode='menu', wave=1, score=0, hp=MAX_HP, overT=0, invuln=0;
 let streak=0, streakT=0, kills=0, paused=false, headshotSlowCd=0, frenzyT=0, lastGun=null, lastHand='', lastKillHand='', lastKillT=-9;
-let slowT=0, slowScale=1, timeScale=1, dmgFlash=0, muzzleLightV=0, moveAmt=0, diveT=0;
+let slowT=0, slowScale=1, timeScale=1, dmgFlash=0, muzzleLightV=0, moveAmt=0;
 let hudDirty=true, hudTimer=0;
 const mult=()=>Math.min(3,Math.max(1,streak));
 function checkWaveClear(){}
@@ -1503,8 +1502,6 @@ function sfxBoom(pos){ if(!actx) return; const t=now(), out=outAt(pos); const o=
 function sfxWhistle(pos,dur){ if(!actx) return; const t=now(), out=outAt(pos); const o=osc('sine',1900,t,dur); o.frequency.exponentialRampToValueAtTime(500,t+dur); const g=gain(); g.gain.setValueAtTime(.0001,t); g.gain.linearRampToValueAtTime(.12,t+dur*.85); g.gain.linearRampToValueAtTime(.0001,t+dur);
   o.connect(g).connect(out); }
 function sfxDrink(){ if(!actx) return; const t=now(); [0,.18,.36].forEach(d=>{ const o=osc('sine',220,t+d,.15); o.frequency.exponentialRampToValueAtTime(120,t+d+.12); const g=gain(); env(g,t+d,.01,.25,.12); o.connect(g).connect(sfxBus); }); }
-function sfxDive(){ if(!actx) return; const t=now(); const n=noise(t,1.2), f=filt('bandpass',400,1.2); f.frequency.exponentialRampToValueAtTime(2200,t+1); const g=gain(); env(g,t,.05,.35,1.1); n.connect(f).connect(g).connect(sfxBus);
-  const o=osc('sine',140,t,1.2); o.frequency.exponentialRampToValueAtTime(60,t+1.1); const g2=gain(); env(g2,t,.02,.4,1.1); o.connect(g2).connect(sfxBus); }
 
 /* ---------- enemies: chase you (or a rival), hold a spot and shoot, dodge, snipe from the roofs ---------- */
 const laserGeo=new T.BufferGeometry().setFromPoints([new T.Vector3(),new T.Vector3(0,0,1)]);
@@ -2061,7 +2058,7 @@ const STREAK_NAMES={2:'DOUBLE',3:'TRIPLE',5:'RAMPAGE',8:'MASSACRE',12:'BLOODBATH
 function killEnemy(e,point,dir,partName,side,meleeForce,forceDrop){
   const head=partName==='head', melee=meleeForce!==undefined;
   streak=streakT>0?streak+1:1; streakT=3;
-  const mvTag=(diveT>0||proneT>0)?'DIVE':''; LS.kills++; if(head) LS.heads++;
+  const mvTag=!grounded?'JUMP':''; LS.kills++; if(head) LS.heads++;
   const pts=Math.round(e.def.score*(head?1.5:1)*(melee?1.5:1)*(mvTag?1.5:1)*mult()/10)*10; score+=pts; kills++; hudDirty=true;
   // a non-head shot can leave them alive on the floor
   const drop=forceDrop || (!melee && !head && forceMul<=1.2 && (partName==='leg'?Math.random()<.6:partName==='body'?Math.random()<.35:partName==='arm'?Math.random()<.2:false));
@@ -2773,7 +2770,7 @@ function loadLevel(i){
   allGuns.forEach(g=>{ setWeapon(g,'pistol'); g.ammo=MAG; g.spin=0; }); syncPips();
   setTempo(LV.bpm); hudDirty=true;
 }
-function resetRig(){ const [x,z,yw]=LV.start; rig.position.set(x,topAt(x,z),z); rig.rotation.set(0,yw||0,0); yaw=yw||0; pitch=0; pv.set(0,0,0); vy=0; grounded=true; feetY=rig.position.y; diveT=0; proneT=0; diveDrop=0; diveCd=0; btActive=false; }
+function resetRig(){ const [x,z,yw]=LV.start; rig.position.set(x,topAt(x,z),z); rig.rotation.set(0,yw||0,0); yaw=yw||0; pitch=0; pv.set(0,0,0); vy=0; grounded=true; feetY=rig.position.y; btActive=false; }
 function spawnAt(d,tag){
   _spawnDef=d; const k=d.k||'shooter', y=d.y!==undefined?d.y:topAt(d.x,d.z);
   const e=spawnEnemy(k,false,{x:d.x,y,z:d.z}); _spawnDef=null;
@@ -2869,11 +2866,10 @@ function drawHud(){
   const showBoss=!!(bossE&&bossE.alive&&bossE.alert); $('hBossW').hidden=!showBoss; if(showBoss){ $('hBossN').textContent=bossE.name; $('hBossBar').style.width=Math.max(0,bossE.hp/bossE.maxHp*100)+'%'; }
 }
 
-/* ---------- movement: walk, snap turn, and the dive ---------- */
+/* ---------- movement: walk, snap turn, and a small jump ---------- */
 const keys={};
-const fwd=new T.Vector3(), rgt=new T.Vector3(), headAfter=new T.Vector3(), pv=new T.Vector3(), wish=new T.Vector3(), diveDir=new T.Vector3();
-let diveDropOn=true; try{ diveDropOn=localStorage.getItem('lastcall-divedrop')!=='off'; }catch(e){}
-let snapReady=true, vy=0, grounded=true, feetY=0, proneT=0, diveDrop=0, diveCd=0, deskDive=false;
+const fwd=new T.Vector3(), rgt=new T.Vector3(), headAfter=new T.Vector3(), pv=new T.Vector3(), wish=new T.Vector3();
+let snapReady=true, vy=0, grounded=true, feetY=0, deskJump=false;
 const btnPrev={};
 function pressed(c,i){ const gp=c.userData.gamepad, b=gp&&gp.buttons&&gp.buttons[i], k=c.userData.hand+i, on=!!(b&&b.pressed), was=btnPrev[k]; btnPrev[k]=on; return on&&!was; }
 function moveRig(dx,dz){
@@ -2882,34 +2878,30 @@ function moveRig(dx,dz){
 }
 function snapTurn(a){ const px=headPos.x, pz=headPos.z, ox=rig.position.x-px, oz=rig.position.z-pz, c=Math.cos(a), s=Math.sin(a);
   rig.position.x=px+ox*c+oz*s; rig.position.z=pz-ox*s+oz*c; rig.rotation.y+=a; }
-const DIVE_T=.75;
-function startDive(){ if(state!=='playing'||diveT>0||proneT>0||diveCd>0) return;
-  diveDir.copy(wish.lengthSq()>.04?wish:rgt).setY(0).normalize(); diveT=DIVE_T; slowmo(.3,2.1); sfxDive(); buzz('both',.5,90); hudDirty=true; }
+const JUMP_V=4.2; // ~0.5 m hop with the 17 m/s² gravity below, much lower than the arena jump
+function startJump(){ if(state!=='playing'||!grounded) return;
+  vy=JUMP_V; grounded=false; sfxJump(false); buzz('both',.25,40); }
 function locomotion(dt){
   fwd.copy(headDir); fwd.y=0; if(fwd.lengthSq()<1e-4) fwd.set(0,0,-1); fwd.normalize(); rgt.set(-fwd.z,0,fwd.x);
-  let lx=0, ly=0, rx=0, wantDive=false;
+  let lx=0, ly=0, rx=0, wantJump=false;
   if(renderer.xr.isPresenting){
     controllers.forEach(c=>{ const gp=c.userData.gamepad; if(!gp||!gp.axes) return;
       const ax=gp.axes.length>=4?gp.axes[2]:(gp.axes[0]||0), ay=gp.axes.length>=4?gp.axes[3]:(gp.axes[1]||0);
-      if(c.userData.hand==='left'){ lx=ax; ly=ay; if(pressed(c,4)) wantDive=true; if(pressed(c,5)) toggleBT(); }
-      else { rx=ax; if(pressed(c,4)) wantDive=true; if(pressed(c,5)&&c.userData.gun) throwGun(c.userData.gun,'right',c.userData.vel); if(pressed(c,3)) toggleBT(); } });
+      if(c.userData.hand==='left'){ lx=ax; ly=ay; if(pressed(c,4)) wantJump=true; if(pressed(c,5)) toggleBT(); }
+      else { rx=ax; if(pressed(c,4)) wantJump=true; if(pressed(c,5)&&c.userData.gun) throwGun(c.userData.gun,'right',c.userData.vel); if(pressed(c,3)) toggleBT(); } });
     if(Math.abs(rx)>.7 && snapReady){ snapTurn(-Math.sign(rx)*Math.PI/6); snapReady=false; }
     if(Math.abs(rx)<.3) snapReady=true;
-  } else if(mode==='desktop'){ lx=(keys.KeyD?1:0)-(keys.KeyA?1:0); ly=(keys.KeyS?1:0)-(keys.KeyW?1:0); wantDive=deskDive; deskDive=false; }
+  } else if(mode==='desktop'){ lx=(keys.KeyD?1:0)-(keys.KeyA?1:0); ly=(keys.KeyS?1:0)-(keys.KeyW?1:0); wantJump=deskJump; deskJump=false; }
   if(Math.abs(lx)<.15) lx=0; if(Math.abs(ly)<.15) ly=0;
   if(!(state==='playing')){ lx=ly=0; }
   wish.copy(fwd).multiplyScalar(-ly).addScaledVector(rgt,lx); const m=Math.min(1,wish.length()); if(m>0) wish.normalize().multiplyScalar(m); else wish.set(0,0,0);
-  if(wantDive) startDive();
-  diveCd-=dt;
-  if(diveT>0){ diveT-=dt; const k=1-diveT/DIVE_T; pv.copy(diveDir).multiplyScalar(k<.8?4.6:1.2); diveDrop=(diveDropOn?.55:0)*Math.min(1,k/.55);
-    if(diveT<=0){ diveT=0; proneT=.45; sfxThud(); buzz('both',.6,70); } }
-  else if(proneT>0){ proneT-=dt; pv.multiplyScalar(.85); if(proneT<=0){ proneT=0; diveCd=.9; } }
-  else { diveDrop=Math.max(0,diveDrop-dt*1.5); const k=Math.min(1,dt*10); pv.x+=(wish.x*2.9-pv.x)*k; pv.z+=(wish.z*2.9-pv.z)*k; }
+  if(wantJump) startJump();
+  { const k=Math.min(1,dt*(grounded?10:2.5)); pv.x+=(wish.x*2.9-pv.x)*k; pv.z+=(wish.z*2.9-pv.z)*k; } // softer steering in the air
   const dx=pv.x*dt, dz=pv.z*dt; if(Math.abs(dx)+Math.abs(dz)>1e-6) moveRig(dx,dz);
   const g=groundAt(headPos.x,headPos.z,feetY);
   if(grounded){ if(g<feetY-.6){ grounded=false; vy=0; } else feetY+=(g-feetY)*Math.min(1,dt*14); }
   if(!grounded){ vy-=17*dt; feetY+=vy*dt; const g2=groundAt(headPos.x,headPos.z,feetY+.05); if(feetY<=g2&&vy<=0){ if(vy<-6) sfxLand(-vy); feetY=g2; vy=0; grounded=true; } }
-  rig.position.y=feetY-diveDrop;
+  rig.position.y=feetY;
   moveAmt+=(m-moveAmt)*Math.min(1,dt*8);
 }
 let btMeter=1, btActive=false;
@@ -2930,7 +2922,7 @@ addEventListener('pointerup',ev=>{ if(ev.button===0) deskGun.held=false; });
 addEventListener('blur',()=>{ deskGun.held=false; for(const k in keys) keys[k]=false; });
 document.addEventListener('keydown',ev=>{ keys[ev.code]=true; if(mode!=='desktop') { if(ev.code==='KeyM') setMusicOn(!musicOn); return; }
   if(ev.repeat) return;
-  if(ev.code==='Space'){ ev.preventDefault(); if(state==='playing') deskDive=true; else cardAdvance(); }
+  if(ev.code==='Space'){ ev.preventDefault(); if(state==='playing') deskJump=true; else cardAdvance(); }
   if(ev.code==='Enter') cardAdvance();
   if(ev.code==='KeyE'||ev.code==='KeyQ') toggleBT();
   if(ev.code==='KeyG') throwGun(deskGun,'right');
@@ -2965,8 +2957,6 @@ vrBtn.addEventListener('click',async()=>{ initAudio();
   }catch(err){ vrNote.textContent='Could not start VR: '+(err&&err.message||err); } });
 $('musicBtn').textContent='Music: '+(musicOn?'on':'off');
 $('musicBtn').addEventListener('click',()=>setMusicOn(!musicOn));
-function syncDrop(){ const b=$('dropBtn'); b.textContent='Dive drop: '+(diveDropOn?'on':'off'); b.setAttribute('aria-pressed',String(diveDropOn)); }
-syncDrop(); $('dropBtn').addEventListener('click',()=>{ diveDropOn=!diveDropOn; try{ localStorage.setItem('lastcall-divedrop',diveDropOn?'on':'off'); }catch(e){} syncDrop(); });
 $('deskBtn').addEventListener('click',()=>{ initAudio(); mode='desktop'; overlay.hidden=true; $('hud').hidden=false; $('cross').hidden=false; $('keys').hidden=false;
   deskGun.root.visible=true; lock(); loadLevel(selLevel); showIntro(); });
 addEventListener('resize',()=>{ if(renderer.xr.isPresenting) return; camera.aspect=innerWidth/innerHeight; camera.updateProjectionMatrix(); renderer.setSize(innerWidth,innerHeight,false); });
@@ -3018,7 +3008,7 @@ function frame(){
     collectAimRays();
     enemies.slice().forEach(e=>{ if(e.alive) updateEnemy(e,dt); });
     ragdolls.slice().forEach(r=>updateRagdoll(r,dt));
-    // enemy rounds: walls and glass stop them, you're a smaller target mid-dive, rival gangs hit each other
+    // enemy rounds: walls and glass stop them, rival gangs hit each other
     projectiles.slice().forEach(pr=>{
       pPrev.copy(pr.m.position); pr.m.position.addScaledVector(pr.v,dt); pr.life-=dt;
       const p=pr.m.position;
@@ -3026,7 +3016,7 @@ function frame(){
         if(gl){ shatterGlass(gl.userData.glass); } else { const q=p.clone(), n=surfaceNormal(q); if(n) decal(q,n.clone(),.06,0,'hole'); sparkBurst(p,5,true); removeProj(pr); return; } }
       // closest approach to your head along this frame's path
       segQ.copy(headPos).sub(pPrev); const sl=pr.v.length()*dt, sd=pr.v.clone().normalize(), tt=Math.max(0,Math.min(sl,segQ.dot(sd))); const cp=pPrev.clone().addScaledVector(sd,tt), d=cp.distanceTo(headPos);
-      if(d<(diveT>0||proneT>0?.1:.19)){ hurtPlayer(); removeProj(pr); return; }
+      if(d<.19){ hurtPlayer(); removeProj(pr); return; }
       if(LV&&LV.factions&&pr.owner){ for(const o of enemies){ if(!o.alive||o.dummy||!o.fac||o.fac===pr.owner.fac||o===pr.owner) continue; o.torso.getWorldPosition(vB); vB.y+=.3*o.def.scale;
         if(vB.distanceTo(p)<.32){ const dir=pr.v.clone().normalize(); hitEnemy(o,Math.random()<.15?'head':'body','',p.clone(),dir); alertEnemy(o); removeProj(pr); return; } } }
       pr.minD=Math.min(pr.minD,d);
