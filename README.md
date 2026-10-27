@@ -4,6 +4,13 @@ A gory wave shooter for Meta Quest 3, set in a brutalist concrete techno club, b
 
 **Play:** https://kungfukennyog.github.io/last-call-vr/ in the Quest browser, then hit **Enter VR**.
 
+## Maps
+
+Pick the map on the title screen before you hit Enter VR (or open the link with `?map=miami`).
+
+- **The Bunker:** the original. A brutalist concrete techno hall, dark Berlin techno at 146 BPM.
+- **Miami '89:** the Palmera, a mob-owned disco on the strip at 3 a.m. Checkerboard marble, a light-up dance floor that flashes to the beat, a mirror ball, neon signs, palms, a pool table, white leather couches, arcade cabinets and an aquarium, with the skyline and a striped sunset through the high windows. A VIP room sits under the balcony behind a wall with two doorways, so fights there go door to door. The mob wears white suits, teal suits and Hawaiian shirts with gold chains, mustaches and shades; rushers come at you with baseball bats. The rules are harsher: almost everything dies in one hit (heavies take three), and so do you, more or less: you get three hits instead of five. The soundtrack is original darksynth at 118 BPM in A minor: gated 80s snares, pumping octave bass, arpeggios, tom fills and a screaming lead that come in as the fight heats up.
+
 ## Controls
 
 | Input | Action |

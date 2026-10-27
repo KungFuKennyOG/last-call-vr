@@ -10,7 +10,7 @@
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;900&family=IBM+Plex+Mono:wght@400;600&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;900&family=IBM+Plex+Mono:wght@400;600&family=Monoton&display=swap">
 <style>
 /* Layout: full-bleed WebGL concrete hall; a stark title slab sits low-left over it, a thin mono HUD rides the corner in browser play */
 :root{
@@ -53,6 +53,18 @@ dl.how dd{margin:0;min-width:0;color:var(--muted)}
 #cross::before{left:8px;top:0;width:2px;height:18px}
 #cross::after{top:8px;left:0;width:18px;height:2px}
 #keys{position:fixed;bottom:calc(14px + env(safe-area-inset-bottom,0px));left:max(16px,env(safe-area-inset-left,0px));font-size:11px;color:var(--muted);letter-spacing:.08em;pointer-events:none}
+.maps{display:flex;flex-wrap:wrap;gap:0;align-items:stretch}
+.maps .lbl{font-size:11px;letter-spacing:.18em;color:var(--muted);align-self:center;margin-right:14px;text-transform:uppercase}
+button.map{background:transparent;color:var(--muted);border-color:var(--line);padding:12px 16px}
+button.map[aria-pressed="true"]{color:var(--ink);border-color:var(--red);box-shadow:inset 0 -3px 0 var(--red)}
+.sub{display:none;margin:-6px 0 0;font-family:'Monoton',var(--display);font-weight:400;font-size:clamp(26px,7vw,46px);line-height:1;color:#22e6ff;text-shadow:0 0 14px rgba(34,230,255,.65);letter-spacing:.04em}
+body.miami{--bg:#0b0516;--ink:#fbeaff;--muted:#a891bd;--red:#ff2d95;--line:#3b2552;--panel:rgba(16,6,30,.84)}
+body.miami #overlay{background:linear-gradient(180deg,rgba(11,5,22,.1) 0%,rgba(11,5,22,.5) 45%,rgba(11,5,22,.94) 100%)}
+body.miami .logo{font-style:italic;background:linear-gradient(180deg,#ffd23f 0%,#ff7a3c 38%,#ff2d95 72%,#a43cff 100%);-webkit-background-clip:text;background-clip:text;color:transparent;padding-right:.06em}
+body.miami .rule{background:linear-gradient(90deg,#ff2d95,#22e6ff)}
+body.miami .sub{display:block}
+body.miami button:not(.ghost):not(.map){background:var(--red);border-color:var(--red);color:#14031c}
+body.miami dl.how{border-left-color:#22e6ff}
 #pause{position:fixed;inset:auto 0 calc(24px + env(safe-area-inset-bottom,0px)) 0;display:flex;justify-content:center;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
 </style>
 </head>
@@ -64,7 +76,12 @@ dl.how dd{margin:0;min-width:0;color:var(--muted)}
   <div class="card">
     <div class="rule"></div>
     <h1 class="logo">Last Call</h1>
-    <p class="tag">Sunday, 6 a.m., a concrete power-station hall on two floors, with no phones and no mercy. Hold it with two pistols against everyone coming through the doors and down the stairs. <b>Everything you drop goes down as a ragdoll.</b></p>
+    <p class="sub" aria-hidden="true">Miami '89</p>
+    <p class="tag" id="tag">Sunday, 6 a.m., a concrete power-station hall on two floors, with no phones and no mercy. Hold it with two pistols against everyone coming through the doors and down the stairs. <b>Everything you drop goes down as a ragdoll.</b></p>
+    <div class="maps" role="group" aria-label="Map"><span class="lbl">Map</span>
+      <button type="button" class="map" data-map="bunker" aria-pressed="true">The Bunker</button>
+      <button type="button" class="map" data-map="miami" aria-pressed="false">Miami '89</button>
+    </div>
     <div class="btns">
       <button id="vrBtn" type="button">Enter VR</button>
       <button id="deskBtn" class="ghost" type="button">Play in browser</button>
@@ -109,6 +126,9 @@ dl.how dd{margin:0;min-width:0;color:var(--muted)}
 const T = window.THREE;
 const $ = id => document.getElementById(id);
 const canvas = $('c');
+// which map: the concrete bunker or the Miami disco; picked on the title screen, kept across reloads
+let MAP='bunker'; try{ const q=new URLSearchParams(location.search).get('map'); if((q||localStorage.getItem('lastcall-map'))==='miami') MAP='miami'; }catch(e){}
+const MIAMI=MAP==='miami'; document.body.classList.toggle('miami',MIAMI);
 
 /* ---------- renderer / scene ---------- */
 const renderer = new T.WebGLRenderer({canvas, antialias:true, powerPreference:'high-performance'});
@@ -116,13 +136,13 @@ renderer.setPixelRatio(Math.min(window.devicePixelRatio||1, 2));
 renderer.setSize(innerWidth, innerHeight, false);
 renderer.xr.enabled = true;
 const scene = new T.Scene();
-scene.background = new T.Color(0x050505);
-scene.fog = new T.FogExp2(0x0b0a0a, 0.042);
+scene.background = new T.Color(MIAMI?0x0b0516:0x050505);
+scene.fog = new T.FogExp2(MIAMI?0x1c0a2a:0x0b0a0a, MIAMI?0.028:0.042);
 const camera = new T.PerspectiveCamera(72, innerWidth/innerHeight, 0.05, 90);
 camera.rotation.order = 'YXZ';
 camera.position.set(0,1.6,0);
 const rig = new T.Group(); rig.add(camera); scene.add(rig);
-const RED=0xe0162b, WHITE=0xe9e7e2;
+const RED=MIAMI?0xff2d95:0xe0162b, WHITE=0xe9e7e2, CYAN=0x22e6ff, ACCS=MIAMI?'#ff2d95':'#e0162b';
 
 /* ---------- hall dimensions + collision (two floors) ---------- */
 const HX=12, HZ=10, CEIL=10, UP_Y=4.5, BAL_Z=-5, RAMP_W=2.2, RAMP_LO=3;
@@ -144,7 +164,16 @@ WALLS.push({x0:-HX+RAMP_W,x1:-HX+RAMP_W+.1,z0:BAL_Z,z1:RAMP_LO,y0:0,y1:UP_Y+1.1,
 WALLS.push({x0:HX-RAMP_W-.1,x1:HX-RAMP_W,z0:BAL_Z,z1:RAMP_LO,y0:0,y1:UP_Y+1.1,r:1});
 WALLS.push({x0:-HX+RAMP_W+.12,x1:HX-RAMP_W-.12,z0:BAL_Z-.06,z1:BAL_Z+.06,y0:UP_Y,y1:UP_Y+1.1});
 WALLS.push({x0:3,x1:9,z0:HZ-1.1,z1:HZ,y0:0,y1:1.1});
-[[-10.3,7.6],[10.3,7.2]].forEach(([x,z])=>WALLS.push({x0:x-1.1,x1:x+1.1,z0:z-.8,z1:z+.8,y0:0,y1:4.6}));
+if(!MIAMI) [[-10.3,7.6],[10.3,7.2]].forEach(([x,z])=>WALLS.push({x0:x-1.1,x1:x+1.1,z0:z-.8,z1:z+.8,y0:0,y1:4.6}));
+else {
+  // the VIP room under the balcony: a partition with two doorways
+  [[-9.8,-5.55],[-4.45,-3.4],[-1.8,1.8],[3.4,4.45],[5.55,9.8]].forEach(([a,b])=>WALLS.push({x0:a,x1:b,z0:-5.12,z1:-4.88,y0:0,y1:UP_Y-.3}));
+  [[-3.4,-1.8],[1.8,3.4]].forEach(([a,b])=>WALLS.push({x0:a,x1:b,z0:-5.12,z1:-4.88,y0:2.6,y1:UP_Y-.3}));
+  // pool table, couch, coffee table, arcade, aquarium, booths, desk, chair, palms
+  [[-8.35,-6.85,-2.85,-.15,.85],[7.5,8.5,-3,.4,.85],[6.1,6.9,-2.1,-.7,.47],[9.42,11.88,HZ-.86,HZ,1.9],[-11.95,-11.15,7.6,9.9,1.9],
+   [-9.2,-4.6,-HZ,-9.14,1],[4.6,9.2,-HZ,-9.14,1],[-1.4,1.4,-8.9,-8.1,.78],[-.35,.35,-9.75,-9.05,1.25],
+   [-8.1,-7.5,8.9,9.5,2],[2,2.6,9,9.6,2],[-11.4,-10.8,-9.7,-9.1,2],[10.8,11.4,-9.7,-9.1,2]].forEach(([x0,x1,z0,z1,h])=>WALLS.push({x0,x1,z0,z1,y0:0,y1:h}));
+}
 function pushOut(p,r,y,tall){
   if(y===undefined) y=p.y; if(tall===undefined) tall=1.7;
   if(p.x>HX-r) p.x=HX-r; if(p.x<-HX+r) p.x=-HX+r; if(p.z>HZ-r) p.z=HZ-r; if(p.z<-HZ+r) p.z=-HZ+r;
@@ -194,6 +223,38 @@ const STAIRS=[1,2].map(i=>{ const s=SURF[i], x=(s.x0+s.x1)/2; return {i,x,
   bot:new THREE.Vector3(x,0,RAMP_LO+1.2), botIn:new THREE.Vector3(x,0,RAMP_LO-.6),
   top:new THREE.Vector3(x,UP_Y,BAL_Z-.9), topIn:new THREE.Vector3(x,UP_Y,BAL_Z+.6)}; });
 
+// Miami has rooms and doorways, so ground-floor enemies there follow a flow field (distance from the goal on a 0.5 m grid)
+const NAV={cs:.5,fields:{}};
+function segClear(ax,az,bx,bz){ for(const b of NAV.obs){ if(segBox(ax,az,bx,bz,b)!==null) return false; } return true; }
+function navField(key,gx,gz){
+  const {nx,nz,blk,cs}=NAV; const f=NAV.fields[key]||(NAV.fields[key]=new Float32Array(nx*nz)), q=NAV.q;
+  f.fill(1e9); const ci=Math.max(0,Math.min(nx-1,Math.floor((gx+HX)/cs))), cj=Math.max(0,Math.min(nz-1,Math.floor((gz+HZ)/cs)));
+  let h=0,t=0; const c0=ci+cj*nx; f[c0]=0; q[t++]=c0;
+  while(h<t){ const c=q[h++], i=c%nx, d=f[c]+1;
+    if(i>0&&!blk[c-1]&&f[c-1]>d){ f[c-1]=d; q[t++]=c-1; } if(i<nx-1&&!blk[c+1]&&f[c+1]>d){ f[c+1]=d; q[t++]=c+1; }
+    if(c>=nx&&!blk[c-nx]&&f[c-nx]>d){ f[c-nx]=d; q[t++]=c-nx; } if(c<nx*(nz-1)&&!blk[c+nx]&&f[c+nx]>d){ f[c+nx]=d; q[t++]=c+nx; } }
+}
+// walk downhill a few cells, then head for the farthest of them we can reach in a straight line
+function navStep(key,p,out){
+  const f=NAV.fields[key]; if(!f) return null; const {nx,nz,cs,blk}=NAV;
+  let c=Math.max(0,Math.min(nx-1,Math.floor((p.x+HX)/cs)))+Math.max(0,Math.min(nz-1,Math.floor((p.z+HZ)/cs)))*nx, path=NAV.path; path.length=0;
+  for(let s=0;s<10;s++){ const ci=c%nx, cj=(c-ci)/nx; let bn=-1, bd=f[c];
+    for(let di=-1;di<=1;di++) for(let dj=-1;dj<=1;dj++){ if(!di&&!dj) continue; const ii=ci+di, jj=cj+dj; if(ii<0||jj<0||ii>=nx||jj>=nz) continue;
+      if(di&&dj&&(blk[ci+di+cj*nx]||blk[ci+jj*nx])) continue; const n=ii+jj*nx; if(f[n]<bd){ bd=f[n]; bn=n; } }
+    if(bn<0) break; c=bn; path.push(c); if(f[c]===0) break; }
+  if(!path.length) return null;
+  let pick=path[0];
+  for(const n of path){ const x=-HX+(n%nx+.5)*cs, z=-HZ+(Math.floor(n/nx)+.5)*cs; if(segClear(p.x,p.z,x,z)) pick=n; else break; }
+  return out.set(-HX+(pick%nx+.5)*cs,0,-HZ+(Math.floor(pick/nx)+.5)*cs);
+}
+if(MIAMI){ const cs=NAV.cs, nx=Math.round(HX*2/cs), nz=Math.round(HZ*2/cs), blk=new Uint8Array(nx*nz), r=.36, obs=navObstacles(0,0,0);
+  NAV.obs=obs.map(b=>({x0:b.x0-r,x1:b.x1+r,z0:b.z0-r,z1:b.z1+r}));
+  for(let i=0;i<nx;i++) for(let j=0;j<nz;j++){ const x=-HX+(i+.5)*cs, z=-HZ+(j+.5)*cs; let b=Math.abs(x)>HX-r||Math.abs(z)>HZ-r;
+    if(!b) for(const o of NAV.obs){ if(x>o.x0&&x<o.x1&&z>o.z0&&z<o.z1){ b=true; break; } } blk[i+j*nx]=b?1:0; }
+  Object.assign(NAV,{nx,nz,blk,q:new Int32Array(nx*nz),path:[],plT:0});
+  STAIRS.forEach(st=>navField('st'+st.i,st.bot.x,st.bot.z));
+}
+
 /* ---------- procedural textures ---------- */
 function rng(seed){ let s=seed>>>0; return ()=>{ s=(s*1664525+1013904223)>>>0; return s/4294967296; }; }
 function concreteTex(base,seed,opts){
@@ -238,37 +299,49 @@ const splatTexs=[makeSplatTex(),makeSplatTex(),makeSplatTex()];
 const wallTex=concreteTex('#6a6864',11,{formwork:true,streaks:true});
 const floorTex=concreteTex('#3e3d3b',27,{scratches:true});
 const colTex=concreteTex('#706e6a',41,{formwork:true,streaks:true});
+function makeChecker(){ const S=512, cv=document.createElement('canvas'); cv.width=cv.height=S; const g=cv.getContext('2d'), R=rng(77), q=S/4;
+  for(let i=0;i<4;i++) for(let j=0;j<4;j++){ const w=(i+j)%2===0; g.fillStyle=w?'#ece6ee':'#130d18'; g.fillRect(i*q,j*q,q,q);
+    g.strokeStyle=w?'rgba(120,100,130,.18)':'rgba(255,255,255,.06)'; g.lineWidth=1.2;
+    for(let k=0;k<3;k++){ g.beginPath(); let x=i*q+R()*q, y=j*q; g.moveTo(x,y); for(let st=0;st<6;st++){ x+=(R()-.5)*40; y+=q/6; g.lineTo(Math.max(i*q,Math.min(i*q+q,x)),y); } g.stroke(); } }
+  g.strokeStyle='rgba(0,0,0,.45)'; g.lineWidth=2; for(let k=0;k<=4;k++){ g.beginPath(); g.moveTo(k*q,0); g.lineTo(k*q,S); g.stroke(); g.beginPath(); g.moveTo(0,k*q); g.lineTo(S,k*q); g.stroke(); }
+  const t=new T.CanvasTexture(cv); t.wrapS=t.wrapT=T.RepeatWrapping; t.anisotropy=Math.min(8,renderer.capabilities.getMaxAnisotropy()); return t; }
+function makeMiamiWall(){ const S=512, cv=document.createElement('canvas'); cv.width=cv.height=S; const g=cv.getContext('2d'), R=rng(91);
+  const gr=g.createLinearGradient(0,0,0,S); gr.addColorStop(0,'#2a1038'); gr.addColorStop(1,'#3a1446'); g.fillStyle=gr; g.fillRect(0,0,S,S);
+  for(let x=0;x<S;x+=32){ g.fillStyle='rgba(255,45,149,.07)'; g.fillRect(x,0,3,S); g.fillStyle='rgba(0,0,0,.12)'; g.fillRect(x+14,0,1,S); }
+  const img=g.getImageData(0,0,S,S), d=img.data; for(let i=0;i<d.length;i+=4){ const n=(R()-.5)*10; d[i]+=n; d[i+1]+=n; d[i+2]+=n; } g.putImageData(img,0,0);
+  const t=new T.CanvasTexture(cv); t.wrapS=t.wrapT=T.RepeatWrapping; return t; }
+const checkerTex=MIAMI?makeChecker():null, miWallTex=MIAMI?makeMiamiWall():null;
 const basicMats={}; const basic=c=>basicMats[c]||(basicMats[c]=new T.MeshBasicMaterial({color:c}));
 
 /* ---------- the hall ---------- */
 {
-  const floorT=floorTex.clone(); floorT.needsUpdate=true; floorT.repeat.set(HX/3,HZ/3);
-  const floor=new T.Mesh(new T.PlaneGeometry(HX*2,HZ*2),new T.MeshLambertMaterial({map:floorT,color:0x8a8884}));
+  const floorT=(MIAMI?checkerTex:floorTex).clone(); floorT.needsUpdate=true; floorT.repeat.set(MIAMI?HX/2:HX/3,MIAMI?HZ/2:HZ/3);
+  const floor=new T.Mesh(new T.PlaneGeometry(HX*2,HZ*2),MIAMI?new T.MeshPhongMaterial({map:floorT,color:0x9a90a8,specular:0x3a2a44,shininess:45}):new T.MeshLambertMaterial({map:floorT,color:0x8a8884}));
   floor.rotation.x=-Math.PI/2; scene.add(floor);
-  const wallMat=(w)=>{ const t=wallTex.clone(); t.needsUpdate=true; t.repeat.set(w/5,CEIL/5); return new T.MeshLambertMaterial({map:t,color:0x9a9894}); };
+  const wallMat=(w)=>{ const t=(MIAMI?miWallTex:wallTex).clone(); t.needsUpdate=true; t.repeat.set(w/5,CEIL/5); return new T.MeshLambertMaterial({map:t,color:MIAMI?0xffffff:0x9a9894}); };
   [[0,-HZ,0,HX*2],[0,HZ,Math.PI,HX*2],[-HX,0,Math.PI/2,HZ*2],[HX,0,-Math.PI/2,HZ*2]].forEach(([x,z,ry,w])=>{
     const m=new T.Mesh(new T.PlaneGeometry(w,CEIL),wallMat(w)); m.position.set(x,CEIL/2,z); m.rotation.y=ry; scene.add(m); });
-  const ceil=new T.Mesh(new T.PlaneGeometry(HX*2,HZ*2),new T.MeshLambertMaterial({color:0x0c0c0c})); ceil.rotation.x=Math.PI/2; ceil.position.y=CEIL; scene.add(ceil);
+  const ceil=new T.Mesh(new T.PlaneGeometry(HX*2,HZ*2),new T.MeshLambertMaterial({color:MIAMI?0x160a20:0x0c0c0c})); ceil.rotation.x=Math.PI/2; ceil.position.y=CEIL; scene.add(ceil);
   const colT=colTex.clone(); colT.needsUpdate=true; colT.repeat.set(.3,CEIL/4);
-  const colMat=new T.MeshLambertMaterial({map:colT,color:0xa09e9a});
+  const colMat=MIAMI?new T.MeshPhongMaterial({color:0xf3eef2,specular:0x4a3a50,shininess:30}):new T.MeshLambertMaterial({map:colT,color:0xa09e9a});
   const colGeo=new T.BoxGeometry(1.1,CEIL,1.1);
   COLS.forEach(c=>{ const m=new T.Mesh(colGeo,colMat); m.position.set(c.x,CEIL/2,c.z); m.userData={solid:true}; scene.add(m); solids.push(m); });
-  const steel=new T.MeshLambertMaterial({color:0x1b1b1d});
+  const steel=MIAMI?new T.MeshPhongMaterial({color:0xc8c8d8,specular:0xffffff,shininess:80}):new T.MeshLambertMaterial({color:0x1b1b1d});
   const solid=m=>{ m.userData={solid:true}; solids.push(m); scene.add(m); return m; };
   solid(floor); solid(ceil);
   scene.children.filter(o=>o.isMesh&&o.geometry.type==='PlaneGeometry'&&o.material.map&&o!==floor).forEach(w=>{ if(!solids.includes(w)){ w.userData={solid:true}; solids.push(w); } });
   // girders
-  [-7.5,-2.5,2.5,7.5].forEach(z=>{ const b=new T.Mesh(new T.BoxGeometry(HX*2,.9,.45),steel); b.position.set(0,CEIL-.9,z); scene.add(b); });
+  if(!MIAMI) [-7.5,-2.5,2.5,7.5].forEach(z=>{ const b=new T.Mesh(new T.BoxGeometry(HX*2,.9,.45),steel); b.position.set(0,CEIL-.9,z); scene.add(b); });
   // balcony slab: second floor across the back of the hall
-  const balT=floorTex.clone(); balT.needsUpdate=true; balT.repeat.set(HX/3,(HZ+BAL_Z)/3);
-  const slabMats=[colMat,colMat,new T.MeshLambertMaterial({map:balT,color:0x8a8884}),new T.MeshLambertMaterial({color:0x151414}),colMat,colMat];
+  const balT=(MIAMI?checkerTex:floorTex).clone(); balT.needsUpdate=true; balT.repeat.set(MIAMI?HX/2:HX/3,MIAMI?(HZ+BAL_Z)/2:(HZ+BAL_Z)/3);
+  const slabMats=[colMat,colMat,(MIAMI?new T.MeshPhongMaterial({map:balT,color:0x9a90a8,specular:0x3a2a44,shininess:45}):new T.MeshLambertMaterial({map:balT,color:0x8a8884})),new T.MeshLambertMaterial({color:MIAMI?0x1c0a24:0x151414}),colMat,colMat];
   const slab=new T.Mesh(new T.BoxGeometry(HX*2,.3,HZ+BAL_Z),slabMats); slab.position.set(0,UP_Y-.15,(-HZ+BAL_Z)/2); solid(slab);
   // balcony rail
   const railTop=new T.Mesh(new T.BoxGeometry(HX*2-RAMP_W*2,.06,.06),steel); railTop.position.set(0,UP_Y+1.05,BAL_Z); solid(railTop);
   const railMid=new T.Mesh(new T.BoxGeometry(HX*2-RAMP_W*2,.04,.04),steel); railMid.position.set(0,UP_Y+.55,BAL_Z); scene.add(railMid);
   for(let x=-HX+RAMP_W;x<=HX-RAMP_W+.01;x+=1.6){ const p=new T.Mesh(new T.BoxGeometry(.05,1.05,.05),steel); p.position.set(x,UP_Y+.52,BAL_Z); scene.add(p); }
   // two stair runs along the side walls, ground floor at z=3 up to the balcony at z=-7
-  const stepMat=new T.MeshLambertMaterial({map:colT,color:0x8a8884}), N=18, run=(RAMP_LO-BAL_Z)/N;
+  const stepMat=MIAMI?new T.MeshLambertMaterial({color:0x6a1048}):new T.MeshLambertMaterial({map:colT,color:0x8a8884}), N=18, run=(RAMP_LO-BAL_Z)/N;
   [1,2].forEach(i=>{ const s=SURF[i], cx=(s.x0+s.x1)/2;
     for(let k=0;k<N;k++){ const top=(k+1)*UP_Y/N, st=new T.Mesh(new T.BoxGeometry(RAMP_W,top,run),stepMat); st.position.set(cx,top/2,RAMP_LO-run/2-k*run); solid(st); }
     const ex=i===1?s.x1:s.x0, len=Math.hypot(RAMP_LO-BAL_Z,UP_Y);
@@ -276,40 +349,201 @@ const basicMats={}; const basic=c=>basicMats[c]||(basicMats[c]=new T.MeshBasicMa
     for(let k=0;k<=6;k++){ const z=RAMP_LO-k*(RAMP_LO-BAL_Z)/6, y=rampH(z); const p=new T.Mesh(new T.BoxGeometry(.05,1.05,.05),steel); p.position.set(ex,y+.52,z); scene.add(p); }
   });
   // booth up on the balcony
-  const booth=new T.Mesh(new T.BoxGeometry(4,1.1,1.1),new T.MeshLambertMaterial({color:0x111112})); booth.position.set(0,UP_Y+.55,-HZ+1.4); solid(booth);
+  const booth=new T.Mesh(new T.BoxGeometry(4,1.1,1.1),new T.MeshLambertMaterial({color:MIAMI?0x1c0c2a:0x111112})); booth.position.set(0,UP_Y+.55,-HZ+1.4); solid(booth);
   // speaker stacks: two on the floor, two on the balcony
   const blk=new T.MeshLambertMaterial({color:0x0d0d0e}), cone=new T.MeshLambertMaterial({color:0x232325});
-  [[-10.3,0,7.6,4.2],[10.3,0,7.2,4.2],[-8.2,UP_Y,-8.6,3],[8.2,UP_Y,-8.6,3]].forEach(([x,y,z,h])=>{
+  if(!MIAMI) [[-10.3,0,7.6,4.2],[10.3,0,7.2,4.2],[-8.2,UP_Y,-8.6,3],[8.2,UP_Y,-8.6,3]].forEach(([x,y,z,h])=>{
     const st=new T.Mesh(new T.BoxGeometry(2.2,h,1.6),blk); st.position.set(x,y+h/2,z); solid(st);
     const face=z>0?-1:1;
     [h*.78,h*.5,h*.22].forEach(cy=>{ const c=new T.Mesh(new T.CircleGeometry(.5,24),cone); c.position.set(x,y+cy,z+face*.81); if(face<0) c.rotation.y=Math.PI; scene.add(c); });
   });
   // bar along the front wall
-  const bar=new T.Mesh(new T.BoxGeometry(6,1.1,1.1),stepMat); bar.position.set(6,.55,HZ-.55); solid(bar);
+  if(!MIAMI){ const bar=new T.Mesh(new T.BoxGeometry(6,1.1,1.1),stepMat); bar.position.set(6,.55,HZ-.55); solid(bar); }
   // pipes
-  const pipe=new T.Mesh(new T.CylinderGeometry(.18,.18,HZ*2,10),steel); pipe.rotation.x=Math.PI/2; pipe.position.set(-HX+.4,7,0); scene.add(pipe);
-  const pipe2=pipe.clone(); pipe2.position.set(HX-.4,7.4,0); scene.add(pipe2);
+  if(!MIAMI){ const pipe=new T.Mesh(new T.CylinderGeometry(.18,.18,HZ*2,10),steel); pipe.rotation.x=Math.PI/2; pipe.position.set(-HX+.4,7,0); scene.add(pipe);
+  const pipe2=pipe.clone(); pipe2.position.set(HX-.4,7.4,0); scene.add(pipe2); }
 }
 
 /* ---------- lights ---------- */
-scene.add(new T.HemisphereLight(0x8a8a90, 0x0a0808, .55));
+scene.add(MIAMI?new T.HemisphereLight(0xa078d8,0x1c0818,.72):new T.HemisphereLight(0x8a8a90, 0x0a0808, .55));
 const redLights=[];
-[[-6,3.2,-7.5],[8,4,5.5],[0,7.2,-7.5]].forEach(([x,y,z])=>{ const l=new T.PointLight(RED,2,16,1.6); l.position.set(x,y,z); scene.add(l); redLights.push(l); });
-const pool=new T.SpotLight(0xdde6ff,2.4,30,.42,.6,1.2); pool.position.set(0,CEIL-1.5,0); pool.target.position.set(0,0,0); scene.add(pool,pool.target);
+(MIAMI?[[-6,3.4,3,RED],[7,3.6,4.5,CYAN],[0,3,-7.5,0xb040ff]]:[[-6,3.2,-7.5],[8,4,5.5],[0,7.2,-7.5]]).forEach(([x,y,z,c])=>{ const l=new T.PointLight(c||RED,2,16,1.6); l.position.set(x,y,z); scene.add(l); redLights.push(l); });
+const pool=new T.SpotLight(MIAMI?0xff7ad0:0xdde6ff,2.4,30,.42,.6,1.2); pool.position.set(0,CEIL-1.5,MIAMI?1.5:0); pool.target.position.set(0,0,MIAMI?1.5:0); scene.add(pool,pool.target);
 const strobe=new T.PointLight(0xffffff,0,40,1.2); strobe.position.set(0,CEIL-3,0); scene.add(strobe);
 const muzzleLight=new T.PointLight(0xffd8a0,0,9); scene.add(muzzleLight);
 // fixtures you can see: red tubes on pillar faces, cold fluorescent bars under girders, light shafts in the haze
 const tubeMats=[];
-COLS.forEach((c,i)=>{ if(i%3!==1) return; const m=new T.MeshBasicMaterial({color:RED}); tubeMats.push(m);
+COLS.forEach((c,i)=>{ if(!MIAMI&&i%3!==1) return; const pink=!MIAMI||i%2===0, m=new T.MeshBasicMaterial({color:pink?RED:CYAN}); if(pink) tubeMats.push(m);
   [[0,.61,0],[0,-.61,Math.PI]].forEach(([dx,dz])=>{ const t=new T.Mesh(new T.BoxGeometry(.05,2.2,.05),m); t.position.set(c.x+dx,3.2,c.z+dz); scene.add(t); }); });
 const fluoroMat=new T.MeshBasicMaterial({color:0xdfe6ff});
-[[0,0],[-5,-2.5],[5,2.5],[-5,7.5],[5,-7.5]].forEach(([x,z])=>{ const f=new T.Mesh(new T.BoxGeometry(2.4,.06,.1),fluoroMat); f.position.set(x,CEIL-1.45,z); scene.add(f); });
+if(!MIAMI) [[0,0],[-5,-2.5],[5,2.5],[-5,7.5],[5,-7.5]].forEach(([x,z])=>{ const f=new T.Mesh(new T.BoxGeometry(2.4,.06,.1),fluoroMat); f.position.set(x,CEIL-1.45,z); scene.add(f); });
 // darkroom under the balcony: a single dim red bar
-{ const f=new T.Mesh(new T.BoxGeometry(3,.05,.08),new T.MeshBasicMaterial({color:0x7a0a12})); f.position.set(-6,UP_Y-.36,-7.5); scene.add(f); }
-const shaftMat=new T.MeshBasicMaterial({color:0xdfe6ff,transparent:true,opacity:.04,blending:T.AdditiveBlending,depthWrite:false,side:T.DoubleSide,fog:false});
-{ const g=new T.CylinderGeometry(.4,3.2,CEIL-1.5,24,1,true); const s=new T.Mesh(g,shaftMat); s.position.set(0,(CEIL-1.5)/2,0); scene.add(s); }
+if(!MIAMI){ const f=new T.Mesh(new T.BoxGeometry(3,.05,.08),new T.MeshBasicMaterial({color:0x7a0a12})); f.position.set(-6,UP_Y-.36,-7.5); scene.add(f); }
+const shaftMat=new T.MeshBasicMaterial({color:MIAMI?0xff7ad0:0xdfe6ff,transparent:true,opacity:.04,blending:T.AdditiveBlending,depthWrite:false,side:T.DoubleSide,fog:false});
+{ const g=new T.CylinderGeometry(.4,3.2,CEIL-1.5,24,1,true); const s=new T.Mesh(g,shaftMat); s.position.set(0,(CEIL-1.5)/2,MIAMI?1.5:0); scene.add(s); }
 const redShaftMat=new T.MeshBasicMaterial({color:RED,transparent:true,opacity:.035,blending:T.AdditiveBlending,depthWrite:false,side:T.DoubleSide,fog:false});
-[[-6,-7.5,3.2],[8,5.5,4]].forEach(([x,z,h])=>{ const s=new T.Mesh(new T.CylinderGeometry(.2,2.4,h,18,1,true),redShaftMat); s.position.set(x,h/2,z); scene.add(s); });
+if(!MIAMI) [[-6,-7.5,3.2],[8,5.5,4]].forEach(([x,z,h])=>{ const s=new T.Mesh(new T.CylinderGeometry(.2,2.4,h,18,1,true),redShaftMat); s.position.set(x,h/2,z); scene.add(s); });
+
+/* ---------- Miami '89: the Palmera, a mob-owned disco on the strip ---------- */
+const MI={tiles:null,tileBase:[],lastBeat:-1,fans:[],ball:null,specks:null,speckDirs:[],fish:[],signs:[],screens:[]};
+const MI_COLS=[0xff2d95,0x22e6ff,0x9a3cff,0xffd23f,0x1a0a22].map(c=>new T.Color(c));
+function canvasTex(w,h,draw){ const cv=document.createElement('canvas'); cv.width=w; cv.height=h; draw(cv.getContext('2d'),w,h); const t=new T.CanvasTexture(cv); t.userData={cv,draw}; return t; }
+function addSolid(m){ m.userData={solid:true}; solids.push(m); scene.add(m); return m; }
+function mbox(w,h,d,mat,x,y,z,solid){ const m=new T.Mesh(new T.BoxGeometry(w,h,d),mat); m.position.set(x,y,z); solid?addSolid(m):scene.add(m); return m; }
+function skylineTex(seed){ return canvasTex(1024,256,(g,W,H)=>{ const R=rng(seed);
+  const sky=g.createLinearGradient(0,0,0,H); sky.addColorStop(0,'#0c0320'); sky.addColorStop(.5,'#36104f'); sky.addColorStop(.82,'#a8286e'); sky.addColorStop(1,'#ff6a5a'); g.fillStyle=sky; g.fillRect(0,0,W,H);
+  for(let i=0;i<110;i++){ g.fillStyle=`rgba(255,255,255,${.25+R()*.6})`; g.fillRect(R()*W,R()*H*.5,1.6,1.6); }
+  // a striped sun sinking behind the skyline
+  const sx=W*(.25+R()*.5), sy=H*.9, sr=78, sg=g.createLinearGradient(0,sy-sr,0,sy); sg.addColorStop(0,'#ffd23f'); sg.addColorStop(1,'#ff2d95');
+  g.save(); g.beginPath(); g.arc(sx,sy,sr,Math.PI,0); g.closePath(); g.clip(); g.fillStyle=sg; g.fillRect(sx-sr,sy-sr,sr*2,sr);
+  g.fillStyle='#a8286e'; for(let k=0;k<6;k++) g.fillRect(sx-sr,sy-sr*.5+k*sr*.1,sr*2,2+k*1.7); g.restore();
+  let x=-10; while(x<W){ const bw=16+R()*44, bh=26+R()*125; g.fillStyle=R()<.5?'#10031c':'#170625'; g.fillRect(x,H-bh,bw,bh);
+    for(let wy=H-bh+6; wy<H-4; wy+=9) for(let wx=x+4; wx<x+bw-4; wx+=7) if(R()<.28){ g.fillStyle=R()<.72?'rgba(255,214,130,.85)':'rgba(255,80,190,.85)'; g.fillRect(wx,wy,3,4); }
+    x+=bw+R()*5; }
+  const palm=(px,ph)=>{ g.strokeStyle='#06010b'; g.lineWidth=6; g.beginPath(); g.moveTo(px,H); g.quadraticCurveTo(px+16,H-ph*.5,px+8,H-ph); g.stroke();
+    g.lineWidth=4; for(let k=0;k<8;k++){ const a=-Math.PI*.95+k*Math.PI*.9/7, L=44+R()*18; g.beginPath(); g.moveTo(px+8,H-ph);
+      g.quadraticCurveTo(px+8+Math.cos(a)*L*.6,H-ph+Math.sin(a)*L*.45,px+8+Math.cos(a)*L,H-ph+14+Math.abs(Math.cos(a))*12); g.stroke(); } };
+  for(let k=0;k<5;k++) palm(40+R()*(W-80),130+R()*80);
+  g.fillStyle='#05010a'; for(let mx=0;mx<=W;mx+=128) g.fillRect(mx-4,0,8,H); g.fillRect(0,0,W,7); g.fillRect(0,H-7,W,7); g.fillRect(0,Math.round(H*.42),W,5);
+}); }
+// neon signs are redrawn once the neon font has loaded
+function drawSign(s){ const g=s.tex.userData.cv.getContext('2d'), W=s.tex.userData.cv.width, H=s.tex.userData.cv.height;
+  g.clearRect(0,0,W,H); g.textAlign='center'; g.textBaseline='middle';
+  let fs=H*.62; g.font=s.font.replace('PX',fs+'px'); const tw=g.measureText(s.text).width; if(tw>W*.9){ fs*=W*.9/tw; g.font=s.font.replace('PX',fs+'px'); }
+  g.shadowColor=s.color; g.strokeStyle=s.color; g.lineWidth=Math.max(2,fs*.05); g.lineJoin='round';
+  g.shadowBlur=fs*.45; g.strokeText(s.text,W/2,H/2); g.shadowBlur=fs*.2; g.strokeText(s.text,W/2,H/2);
+  g.shadowBlur=fs*.08; g.fillStyle='#fff6fb'; g.fillText(s.text,W/2,H/2); s.tex.needsUpdate=true; }
+function neonSign(text,color,w,h,font,x,y,z,ry){
+  const cv=document.createElement('canvas'); cv.width=1024; cv.height=Math.max(64,Math.round(1024*h/w)); const tex=new T.CanvasTexture(cv); tex.userData={cv};
+  const s={text,color,font,tex}; drawSign(s); MI.signs.push(s);
+  const m=new T.Mesh(new T.PlaneGeometry(w,h),new T.MeshBasicMaterial({map:tex,transparent:true,blending:T.AdditiveBlending,depthWrite:false,fog:false}));
+  m.position.set(x,y,z); m.rotation.y=ry; scene.add(m); return m; }
+function hawaiiTex(base,flower,leaf,seed){ return canvasTex(256,256,(g,W,H)=>{ const R=rng(seed); g.fillStyle=base; g.fillRect(0,0,W,H);
+  for(let i=0;i<14;i++){ const x=R()*W,y=R()*H,a=R()*6.28; g.strokeStyle=leaf; g.lineWidth=7; g.beginPath(); g.moveTo(x,y); g.quadraticCurveTo(x+Math.cos(a)*30,y+Math.sin(a)*30,x+Math.cos(a+.5)*55,y+Math.sin(a+.5)*55); g.stroke(); }
+  for(let i=0;i<9;i++){ const x=R()*W,y=R()*H,r=10+R()*8; g.fillStyle=flower; for(let k=0;k<5;k++){ const a=k*1.2566+R()*.2; g.beginPath(); g.arc(x+Math.cos(a)*r*.7,y+Math.sin(a)*r*.7,r*.62,0,6.29); g.fill(); }
+    g.fillStyle='#ffe066'; g.beginPath(); g.arc(x,y,r*.25,0,6.29); g.fill(); } }); }
+const HAWAII=MIAMI?[hawaiiTex('#1d9ea6','#ff4f8a','#0f5e4a',3),hawaiiTex('#ff6f61','#fff1d6','#1f6b4a',8),hawaiiTex('#2b2f8f','#ff7ab6','#2aa37a',13),hawaiiTex('#f2e6c8','#e0306a','#2f8a5a',21)]
+  .map(t=>{ t.wrapS=t.wrapT=T.RepeatWrapping; return new T.MeshLambertMaterial({map:t}); }):[];
+function makePalm(x,y,z,h,s){
+  const grp=new T.Group(); grp.position.set(x,y,z); grp.rotation.y=Math.random()*6.28; scene.add(grp);
+  const pot=new T.Mesh(new T.CylinderGeometry(.3*s,.22*s,.5*s,14),new T.MeshPhongMaterial({color:0xf3eef0,shininess:30})); pot.position.y=.25*s; grp.add(pot);
+  const trunkMat=new T.MeshLambertMaterial({color:0x6b4a2e}), N=7; let px=0, py=.45*s, lean=.05+Math.random()*.06;
+  for(let k=0;k<N;k++){ const len=h/N, r0=.085-.035*k/N; const seg=new T.Mesh(new T.CylinderGeometry(r0*.9,r0,len,8),trunkMat);
+    seg.position.set(px+lean*len/2,py+len/2,0); seg.rotation.z=-lean; grp.add(seg); px+=lean*len; py+=len; lean+=.03; }
+  const leafMats=[new T.MeshLambertMaterial({color:0x1c7a44,side:T.DoubleSide}),new T.MeshLambertMaterial({color:0x2e9a52,side:T.DoubleSide})];
+  for(let k=0;k<9;k++){ const L=(1.1+Math.random()*.4)*s, geo=new T.PlaneGeometry(L,.3*s,8,1); geo.translate(L/2,0,0); const pos=geo.attributes.position;
+    for(let i=0;i<pos.count;i++){ const u=pos.getX(i)/L, w=pos.getY(i); pos.setXYZ(i,pos.getX(i),-u*u*.65*s,w*(1-u*.85)); }
+    geo.rotateX(Math.PI/2); geo.computeVertexNormals();
+    const leaf=new T.Mesh(geo,leafMats[k%2]); leaf.position.set(px,py,0); leaf.rotation.set(0,k*Math.PI*2/9+Math.random()*.3,.35+Math.random()*.3,'YZX'); grp.add(leaf); }
+  return grp; }
+function buildMiami(){
+  const wallM=new T.MeshPhongMaterial({color:0x2a1236,specular:0x221830,shininess:12});
+  const pinkN=new T.MeshBasicMaterial({color:RED}), cyanN=new T.MeshBasicMaterial({color:CYAN}), goldN=new T.MeshBasicMaterial({color:0xffd23f});
+  // VIP room partition under the balcony edge, two doorways, neon round the doors
+  [[-9.8,-5.55],[-4.45,-3.4],[-1.8,1.8],[3.4,4.45],[5.55,9.8]].forEach(([a,b])=>mbox(b-a,UP_Y-.3,.24,wallM,(a+b)/2,(UP_Y-.3)/2,-5,true));
+  [[-3.4,-1.8],[1.8,3.4]].forEach(([a,b])=>{ mbox(b-a,UP_Y-.3-2.6,.24,wallM,(a+b)/2,2.6+(UP_Y-.3-2.6)/2,-5,true);
+    [a,b].forEach(x=>mbox(.05,2.6,.05,cyanN,x,1.3,-4.86)); mbox(b-a,.05,.05,cyanN,(a+b)/2,2.6,-4.86); });
+  neonSign('VIP','#22e6ff',2.6,1.1,"PX Monoton, 'Big Shoulders Display', Impact, sans-serif",0,3.3,-4.86,0);
+  // carpet in the VIP room, a light-up dance floor in the middle of the hall
+  const carpet=new T.Mesh(new T.PlaneGeometry(HX*2,HZ+BAL_Z-.12),new T.MeshLambertMaterial({color:0x3a0822,polygonOffset:true,polygonOffsetFactor:-1,polygonOffsetUnits:-1}));
+  carpet.rotation.x=-Math.PI/2; carpet.position.set(0,.0015,(-HZ+BAL_Z-.12)/2); scene.add(carpet);
+  const tiles=new T.InstancedMesh(new T.PlaneGeometry(.94,.94).rotateX(-Math.PI/2),new T.MeshBasicMaterial({color:0xffffff,polygonOffset:true,polygonOffsetFactor:-1,polygonOffsetUnits:-1}),25);
+  const mtx=new T.Matrix4(); for(let i=0;i<25;i++){ mtx.makeTranslation(i%5-2,.0015,Math.floor(i/5)-.5); tiles.setMatrixAt(i,mtx); tiles.setColorAt(i,MI_COLS[i%4]); MI.tileBase.push(MI_COLS[i%4].clone()); }
+  scene.add(tiles); MI.tiles=tiles;
+  [[0,-1.02,5.1,.04],[0,4.02,5.1,.04],[-2.52,1.5,.04,5.1],[2.52,1.5,.04,5.1]].forEach(([x,z,w,d])=>mbox(w,.02,d,new T.MeshPhongMaterial({color:0xd8d8e8,shininess:90}),x,.01,z));
+  // skyline windows high on three walls
+  const win=(w,h,x,y,z,ry,seed)=>{ const t=skylineTex(seed); t.wrapS=T.RepeatWrapping; t.repeat.set(w/(h*4),1); const m=new T.Mesh(new T.PlaneGeometry(w,h),new T.MeshBasicMaterial({map:t,fog:false})); m.position.set(x,y,z); m.rotation.y=ry; scene.add(m); };
+  win(22,3.6,0,7.75,-HZ+.03,0,5); win(19,3.4,-HX+.03,7.6,0,Math.PI/2,9); win(19,3.4,HX-.03,7.6,0,-Math.PI/2,17);
+  // neon: a pink line round the main room, cyan along the balcony edge, signs
+  mbox(HX*2,.05,.05,pinkN,0,3.4,HZ-.04); mbox(.05,.05,HZ-BAL_Z,pinkN,-HX+.04,3.4,(HZ+BAL_Z)/2); mbox(.05,.05,HZ-BAL_Z,pinkN,HX-.04,3.4,(HZ+BAL_Z)/2);
+  mbox(HX*2-RAMP_W*2,.05,.05,cyanN,0,UP_Y-.33,BAL_Z+.13);
+  neonSign('PALMERA','#ff2d95',9.5,2.2,"PX Monoton, 'Big Shoulders Display', Impact, sans-serif",0,6.2,HZ-.04,Math.PI);
+  neonSign('OPEN ALL NIGHT','#22e6ff',5,.9,"900 PX 'Big Shoulders Display'",-HX+.04,5.05,6.5,Math.PI/2);
+  neonSign('MIAMI 1989','#ffd23f',4.2,.9,"900 italic PX 'Big Shoulders Display'",HX-.04,4.3,7.6,-Math.PI/2);
+  // stair stringers lit pink
+  [1,2].forEach(i=>{ const s=SURF[i], ex=i===1?s.x1+.06:s.x0-.06, len=Math.hypot(RAMP_LO-BAL_Z,UP_Y);
+    const n=new T.Mesh(new T.BoxGeometry(.04,.04,len),pinkN); n.position.set(ex,UP_Y/2+.04,(RAMP_LO+BAL_Z)/2); n.rotation.x=Math.atan2(UP_Y,RAMP_LO-BAL_Z); scene.add(n); });
+  // mirror ball over the dance floor, throwing specks round the room
+  const ball=new T.Mesh(new T.IcosahedronGeometry(.42,2),new T.MeshPhongMaterial({color:0xd8d8e8,specular:0xffffff,shininess:120,flatShading:true}));
+  ball.position.set(0,7.6,1.5); scene.add(ball); MI.ball=ball; mbox(.015,CEIL-8.02,.015,new T.MeshBasicMaterial({color:0x777777}),0,(CEIL+8.02)/2,1.5);
+  const NS=90, sp=new Float32Array(NS*3), sc=new Float32Array(NS*3);
+  for(let i=0;i<NS;i++){ const y=-.75+Math.random()*1.05, a=Math.random()*6.28, r=Math.sqrt(1-y*y); MI.speckDirs.push(new T.Vector3(Math.cos(a)*r,y,Math.sin(a)*r)); MI_COLS[i%3===2?3:i%2].toArray(sc,i*3); }
+  const sg=new T.BufferGeometry(); sg.setAttribute('position',new T.BufferAttribute(sp,3)); sg.setAttribute('color',new T.BufferAttribute(sc,3));
+  MI.specks=new T.Points(sg,new T.PointsMaterial({size:.38,map:glowTex,vertexColors:true,transparent:true,opacity:.75,blending:T.AdditiveBlending,depthWrite:false,fog:false}));
+  MI.specks.frustumCulled=false; scene.add(MI.specks);
+  // ceiling fans
+  const wood=new T.MeshLambertMaterial({color:0x3a2416}), chrome=new T.MeshPhongMaterial({color:0xd0d0dc,specular:0xffffff,shininess:80});
+  [[-6,4.5],[6,4.5],[0,-2.2]].forEach(([x,z])=>{ mbox(.03,.6,.03,chrome,x,CEIL-.3,z); const f=new T.Group(); f.position.set(x,CEIL-.65,z); scene.add(f);
+    const hub=new T.Mesh(new T.CylinderGeometry(.12,.14,.16,12),chrome); f.add(hub);
+    for(let k=0;k<5;k++){ const b=new T.Mesh(new T.BoxGeometry(1.15,.018,.2),wood); b.position.set(Math.cos(k*1.2566)*.66,0,Math.sin(k*1.2566)*.66); b.rotation.y=-k*1.2566; b.rotation.x=.12; f.add(b); }
+    MI.fans.push(f); });
+  // bar along the front wall: black lacquer, chrome top, neon lip, a back bar of bottles
+  const lac=new T.MeshPhongMaterial({color:0x120812,specular:0x664466,shininess:70});
+  mbox(6,1.1,1.1,lac,6,.55,HZ-.55,true); mbox(6.1,.05,1.2,chrome,6,1.12,HZ-.55); mbox(6,.04,.04,pinkN,6,1.02,HZ-1.12); mbox(6,.04,.04,cyanN,6,.06,HZ-1.12);
+  [1.55,2.1].forEach(y=>mbox(5.6,.04,.26,chrome,6,y,HZ-.14));
+  const bc=[0x2e8a3a,0x8a2a10,0xd8c890,0x2a5aa0,0xb01060,0xe0e0e0];
+  for(let k=0;k<26;k++){ const y=k<13?1.57:2.12, x=3.5+(k%13)*.39+Math.random()*.08, h=.22+Math.random()*.14;
+    const b=new T.Mesh(new T.CylinderGeometry(.035,.04,h,8),new T.MeshPhongMaterial({color:bc[k%6],emissive:bc[k%6],emissiveIntensity:.25,transparent:true,opacity:.85,shininess:90}));
+    b.position.set(x,y+h/2,HZ-.14); scene.add(b); }
+  // arcade cabinets in the front-right corner
+  [9.82,10.65,11.48].forEach((x,k)=>{ mbox(.8,1.9,.85,new T.MeshLambertMaterial({color:[0x2a0a40,0x0a2a40,0x400a2a][k]}),x,.95,HZ-.43,true);
+    const scr=canvasTex(128,96,(g,W,H)=>{ const gr=g.createLinearGradient(0,0,0,H); gr.addColorStop(0,'#04101c'); gr.addColorStop(1,'#1a0430'); g.fillStyle=gr; g.fillRect(0,0,W,H);
+      const R=rng(40+k); for(let i=0;i<26;i++){ g.fillStyle=['#ff2d95','#22e6ff','#ffd23f','#7aff6a'][i%4]; g.fillRect(Math.floor(R()*16)*8,Math.floor(R()*9)*8,8,8); }
+      g.fillStyle='#fff'; g.font='bold 11px monospace'; g.textAlign='center'; g.fillText('INSERT COIN',W/2,H-10); });
+    const s=new T.Mesh(new T.PlaneGeometry(.6,.45),new T.MeshBasicMaterial({map:scr,fog:false})); s.position.set(x,1.38,HZ-.865); s.rotation.set(-.18,Math.PI,0); scene.add(s); MI.screens.push(s);
+    mbox(.72,.16,.02,[pinkN,cyanN,goldN][k],x,1.8,HZ-.87); mbox(.8,.08,.3,new T.MeshLambertMaterial({color:0x111111}),x,1.02,HZ-.95); });
+  // aquarium along the left wall
+  mbox(.8,.7,2.3,lac,-11.55,.35,8.75,true);
+  const water=canvasTex(64,128,(g,W,H)=>{ const gr=g.createLinearGradient(0,0,0,H); gr.addColorStop(0,'#38e8ff'); gr.addColorStop(1,'#0a2a7a'); g.fillStyle=gr; g.fillRect(0,0,W,H);
+    g.fillStyle='rgba(255,255,255,.25)'; for(let i=0;i<30;i++) g.fillRect(Math.random()*W,Math.random()*H,2,2); });
+  const wp=new T.Mesh(new T.PlaneGeometry(2.2,1.05),new T.MeshBasicMaterial({map:water,fog:false})); wp.position.set(-11.9,1.25,8.75); wp.rotation.y=Math.PI/2; scene.add(wp);
+  mbox(.76,1.1,2.26,new T.MeshPhongMaterial({color:0x88eeff,transparent:true,opacity:.18,shininess:100,depthWrite:false}),-11.55,1.25,8.75);
+  mbox(.8,.06,2.3,chrome,-11.55,1.83,8.75);
+  for(let k=0;k<7;k++){ const f=new T.Mesh(new T.BoxGeometry(.03,.06,.13),new T.MeshBasicMaterial({color:[0xff7a2a,0xffd23f,0xff2d95,0x22e6ff][k%4]})); f.position.set(-11.55+(Math.random()-.5)*.4,1,8.75); scene.add(f);
+    MI.fish.push({m:f,ph:Math.random()*6.28,sp:.4+Math.random()*.5,y:.9+Math.random()*.6}); }
+  // pool table under a hanging lamp
+  mbox(1.5,.2,2.7,new T.MeshPhongMaterial({color:0x3a1a0c,shininess:40}),-7.6,.75,-1.5,true); mbox(1.3,.03,2.5,new T.MeshLambertMaterial({color:0x0d6b45}),-7.6,.86,-1.5);
+  [[-.6,-1.2],[.6,-1.2],[-.6,1.2],[.6,1.2]].forEach(([dx,dz])=>mbox(.12,.66,.12,wood,-7.6+dx,.33,-1.5+dz));
+  for(let k=0;k<7;k++){ const b=new T.Mesh(new T.SphereGeometry(.03,10,8),new T.MeshPhongMaterial({color:[0xffffff,0xffd23f,0x2a5aa0,0xd01020,0x6a1a8a,0xff7a2a,0x111111][k],shininess:90}));
+    b.position.set(-7.6+(Math.random()-.5)*1,.905,-1.5+(Math.random()-.5)*2.1); scene.add(b); }
+  mbox(.36,.1,1.5,new T.MeshBasicMaterial({color:0xfff0c0}),-7.6,2.4,-1.5); mbox(.42,.12,1.56,new T.MeshLambertMaterial({color:0x0d4a2a}),-7.6,2.48,-1.5);
+  [-.6,.6].forEach(dz=>mbox(.01,CEIL-2.5,.01,chrome,-7.6,(CEIL+2.5)/2,-1.5+dz));
+  // white leather couch and a glass coffee table on the right
+  const leather=new T.MeshPhongMaterial({color:0xf2ede4,specular:0x333333,shininess:25});
+  mbox(1,.42,3.4,leather,8,.21,-1.3,true); mbox(.28,.85,3.4,leather,8.36,.42,-1.3,true); [-3,.4].forEach(z=>mbox(1,.62,.24,leather,8,.31,z+(z<0?.12:-.12),true));
+  mbox(.8,.03,1.4,new T.MeshPhongMaterial({color:0x99ddff,transparent:true,opacity:.35,shininess:120,depthWrite:false}),6.5,.45,-1.4);
+  [[-.35,-.65],[.35,-.65],[-.35,.65],[.35,.65]].forEach(([dx,dz])=>mbox(.03,.44,.03,chrome,6.5+dx,.22,-1.4+dz));
+  // VIP room: velvet booths, the boss's desk
+  const velvet=new T.MeshLambertMaterial({color:0x6a0f35});
+  [-6.9,6.9].forEach(x=>{ mbox(4.6,.45,.85,velvet,x,.225,-9.57,true); mbox(4.6,1,.22,velvet,x,.5,-9.89,true); mbox(4.6,.04,.04,pinkN,x,1.02,-9.78); });
+  mbox(2.8,.78,.8,new T.MeshPhongMaterial({color:0x2a1206,shininess:50}),0,.39,-8.5,true); mbox(.7,1.25,.7,new T.MeshPhongMaterial({color:0x0c0c0c,shininess:30}),0,.62,-9.4,true);
+  mbox(.12,.3,.12,new T.MeshBasicMaterial({color:0x2aff7a}),.9,.93,-8.5);
+  // palms in pots
+  [[-7.8,0,9.2,2.6,1],[2.3,0,9.3,2.4,1],[-11.1,0,-9.4,2.3,.9],[11.1,0,-9.4,2.3,.9],[-8.2,UP_Y,-8.6,2.2,.9],[8.2,UP_Y,-8.6,2.2,.9],[-10.8,UP_Y,-9.3,2,.85],[10.8,UP_Y,-9.3,2,.85]].forEach(a=>makePalm(...a));
+  // DJ booth face
+  mbox(4,.05,.05,pinkN,0,UP_Y+.95,-HZ+1.97); mbox(4,.05,.05,cyanN,0,UP_Y+.12,-HZ+1.97);
+}
+const mCol=new T.Color(), mDir=new T.Vector3();
+function updateMiami(dt){
+  const bp=mus&&actx?(actx.currentTime-mus.t0)/(MSTEP*4):tAll*1.97, beat=Math.floor(bp), ph=bp-beat, bounce=Math.exp(-ph*4), bar=Math.floor(beat/4);
+  if(beat!==MI.lastBeat){ MI.lastBeat=beat; const pat=bar%4;
+    for(let i=0;i<25;i++){ const x=i%5-2, z=Math.floor(i/5)-2; let k;
+      if(pat===0) k=((x+z+beat)%2+2)%2===0?0:1; else if(pat===1) k=[0,1,2,3][(Math.round(Math.hypot(x,z))+beat)%4]; else if(pat===2) k=((x+2+beat)%4+4)%4; else k=Math.random()<.35?4:Math.floor(Math.random()*4);
+      MI.tileBase[i].copy(MI_COLS[k]); } }
+  const lv=state==='over'?.25:.35+.65*bounce;
+  for(let i=0;i<25;i++){ mCol.copy(MI.tileBase[i]).multiplyScalar(lv); MI.tiles.setColorAt(i,mCol); } MI.tiles.instanceColor.needsUpdate=true;
+  pool.color.setHSL([.9,.52,.77][bar%3],.95,.62);
+  redLights.forEach((l,i)=>{ l.intensity=(i===2?1.6:1.5)+bounce*(i===2?.3:.9); });
+  MI.fans.forEach(f=>f.rotation.y+=dt*3.2);
+  MI.ball.rotation.y+=dt*.5;
+  const pa=MI.specks.geometry.attributes.position, o=MI.ball.position, a=tAll*.35, ca=Math.cos(a), sa=Math.sin(a);
+  for(let i=0;i<MI.speckDirs.length;i++){ const d0=MI.speckDirs[i]; mDir.set(d0.x*ca-d0.z*sa,d0.y,d0.x*sa+d0.z*ca);
+    let t=1e9; [[mDir.x,o.x,HX-.06],[mDir.y,o.y,0],[mDir.z,o.z,HZ-.06]].forEach(([d,p,b],ax)=>{ if(Math.abs(d)<1e-4) return; const lim=ax===1?(d>0?CEIL-.06:.03):(d>0?b:-b); const tt=(lim-p)/d; if(tt>0&&tt<t) t=tt; });
+    pa.setXYZ(i,o.x+mDir.x*t,o.y+mDir.y*t,o.z+mDir.z*t); }
+  pa.needsUpdate=true;
+  MI.fish.forEach(f=>{ f.ph+=dt*f.sp; f.m.position.z=8.75+Math.sin(f.ph)*.95; f.m.position.y=f.y+Math.sin(f.ph*1.7)*.06; f.m.rotation.y=Math.cos(f.ph)>0?0:Math.PI; });
+}
+if(MIAMI) buildMiami();
 
 /* ---------- doors ---------- */
 const DOORS=[[-HX,0,6],[HX,0,6],[-HX,0,-7.5],[HX,0,-7.5],[-5,0,HZ],[0,0,HZ],[-5,UP_Y,-HZ],[5,UP_Y,-HZ]].map(([x,y,z])=>{
@@ -340,7 +574,7 @@ function initAudio(){
 }
 
 /* ---------- soundtrack: dark Berlin warehouse techno at 146 BPM that builds with the fight ---------- */
-const MBPM=146, MSTEP=60/MBPM/4;
+const MBPM=MIAMI?118:146, MSTEP=60/MBPM/4;
 let mus=null, musicOn=true;
 try{ musicOn=localStorage.getItem('lastcall-music')!=='off'; }catch(e){}
 function makeIR(sec,decay){ const len=Math.floor(actx.sampleRate*sec), b=actx.createBuffer(2,len,actx.sampleRate);
@@ -357,7 +591,10 @@ function initMusic(){
   rumbleIn.connect(rIR); rIR.connect(rlp); rlp.connect(rsh); rsh.connect(rg); rg.connect(duck);
   const dIn=gain(); dIn.gain.value=.4; const dl=actx.createDelay(1); dl.delayTime.value=MSTEP*3; const fb=gain(); fb.gain.value=.45; const dlp=filt('lowpass',2000);
   dIn.connect(dl); dl.connect(dlp); dlp.connect(fb); fb.connect(dl); dlp.connect(duck); dlp.connect(verbIn);
-  mus={bus,duck,hard,grit,verbIn,rumbleIn,dIn,t0:actx.currentTime+.12,step:0,breakAt:0,breakLen:4,crash:false};
+  // Miami: a short flat room for gated 80s snares, a gentler clip for the kick
+  const gIR=actx.createConvolver(); gIR.buffer=makeIR(.38,.12); const gate=gain(), gOut=gain(); gOut.gain.value=.5; gate.connect(gIR); gIR.connect(gOut); gOut.connect(duck);
+  const soft=clipper(2.2); soft.connect(bus);
+  mus={bus,duck,hard,grit,verbIn,rumbleIn,dIn,gate,soft,t0:actx.currentTime+.12,step:0,breakAt:0,breakLen:4,crash:false};
 }
 function setMusicOn(on){ musicOn=on; try{ localStorage.setItem('lastcall-music',on?'on':'off'); }catch(e){}
   if(mus) mus.bus.gain.setTargetAtTime(on?.62:0,actx.currentTime,.05); const b=document.getElementById('musicBtn'); if(b) b.textContent='Music: '+(on?'on':'off'); }
@@ -372,7 +609,59 @@ function scheduleMusic(){ if(!mus) return; const ahead=actx.currentTime+.15; whi
 // A phrygian: A, Bb, C, Eb (the tritone) — dark and tense
 const ACID=[0,0,12,1, 0,0,13,0, 0,12,0,6, 0,1,0,13], ACC=[1,0,1,0, 0,1,1,0, 1,0,0,1, 1,0,1,1], ACID_ON=[1,1,1,0, 1,1,1,0, 1,1,0,1, 1,1,1,1];
 const CLANK=[0,0,0,1, 0,0,1,0, 0,0,1,0, 0,1,0,1];
+/* ---------- Miami soundtrack: darksynth at 118 BPM in A minor (Am, F, Dm, E) ---------- */
+const SW_CH=[[0,3,7],[-4,0,3],[5,8,12],[7,11,14]], SW_ROOT=[0,-4,5,-5];
+const SW_LEAD=[[12,null,10,7,null,8,7,3],[5,null,7,8,null,7,5,3],[5,null,3,2,null,3,5,8],[7,null,11,12,14,null,11,null]];
+const SW_ARP=[0,1,2,3,4,5,4,3,1,2,3,4,5,4,3,2];
+function musicStepMiami(i,t){
+  const s=i%16, bar=Math.floor(i/16), Lr=musicLevel(), brk=Lr==='break', L=brk?1:Lr, c=bar%4, ch=SW_CH[c], root=SW_ROOT[c];
+  if(mus.crash){ mus.crash=false; mCrash(t); mBoom(t); }
+  if(L<0){ if(s===0) sPad(t,ch,MSTEP*16,.7); if(s===0||s===8) sKick(t,.35); if(s%4===0) sBass(t,root,.5,0); return; }
+  if(s===0) sPad(t,ch,MSTEP*16,L>=3?1:.8);
+  if(!brk){
+    if(s%4===0){ sKick(t,L===0?.7:1); duckAt(t); }
+    if(L>=1 && (s===4||s===12)) sSnare(t,L>=3?1:.8);
+    if(L>=3 && bar%2===1 && s===15) sSnare(t,.35);
+    if(L>=1) sHat(t,s%4===2?.075:.032,s%4===2); else if(s%4===2) sHat(t,.05,true);
+    if(L>=5 && s%2===1) sHat(t+MSTEP/2,.02,false);
+    if(L===0){ if(s%2===0) sBass(t,root+(s%4?12:0),.7,0); } else sBass(t,root+(s%2?12:0),1,L);
+    if(L>=2){ const tones=[ch[0],ch[1],ch[2],ch[0]+12,ch[1]+12,ch[2]+12]; sArp(t,tones[SW_ARP[s]],L>=3?1:.7); }
+    if(L>=2 && bar%4===3 && s>=12) sTom(t,[220,180,150,120][s-12],L>=4?1:.75);
+    if(L>=4 && s%2===0){ const n=SW_LEAD[c][s/2]; if(n!==null){ let k=s/2+1, len=1; while(k<8&&SW_LEAD[c][k]===null){ len++; k++; } sLead(t,n,MSTEP*2*len*.92,L>=5); } }
+    if(L>=3 && s===0 && c===3) sStab(t,[7,11,14]);
+  } else {
+    const f=Math.min(1,(t-mus.breakAt)/mus.breakLen);
+    if(s%2===0) sBass(t,root,.6,0);
+    const tones=[ch[0],ch[1],ch[2],ch[0]+12,ch[1]+12,ch[2]+12]; sArp(t,tones[SW_ARP[s]],.5+f*.7);
+    mRiser(t,f);
+    if((f>.45&&s%4===0)||(f>.7&&s%2===0)||f>.86) sSnare(t,.15+f*.45); }
+}
+function sKick(t,v){ const o=osc('sine',155,t,.4); o.frequency.exponentialRampToValueAtTime(44,t+.11); const g=gain(); env(g,t,.001,1.25*v,.34); o.connect(g); g.connect(mus.soft);
+  const c=osc('triangle',1100,t,.03); c.frequency.exponentialRampToValueAtTime(240,t+.02); const g2=gain(); env(g2,t,.001,.22*v,.02); c.connect(g2).connect(mus.bus); }
+function sSnare(t,v){ const n=noise(t,.22), f=filt('bandpass',1900,.7), g=gain(); env(g,t,.001,.5*v,.17); n.connect(f).connect(g); g.connect(mus.duck);
+  const o=osc('triangle',210,t,.12); o.frequency.exponentialRampToValueAtTime(150,t+.1); const g2=gain(); env(g2,t,.001,.32*v,.09); o.connect(g2).connect(mus.duck);
+  const sg=gain(); sg.gain.value=1.5*v; g.connect(sg); g2.connect(sg); sg.connect(mus.gate); }
+function sHat(t,v,open){ const n=noise(t,open?.16:.04), f=filt('highpass',open?7200:9500), g=gain(); env(g,t,.001,v,open?.12:.024); n.connect(f).connect(g).connect(mus.duck); }
+function sBass(t,n,v,L){ const fr=55*Math.pow(2,n/12), o=osc('sawtooth',fr,t,MSTEP*1.05), lp=filt('lowpass',600,L>=5?9:6), g=gain();
+  const cut=L>=5?1500:280+L*150; lp.frequency.setValueAtTime(cut*2.4,t); lp.frequency.exponentialRampToValueAtTime(Math.max(90,cut*.55),t+MSTEP*.85);
+  env(g,t,.002,(L>=5?.13:.17)*v,MSTEP*.88); o.connect(lp).connect(g);
+  if(L>=5){ const o2=osc('square',fr*1.006,t,MSTEP*1.05); o2.connect(lp); g.connect(mus.grit); } else g.connect(mus.duck); }
+function sPad(t,ch,dur,v){ const lp=filt('lowpass',700,1), g=gain(); g.gain.setValueAtTime(.0001,t); g.gain.linearRampToValueAtTime(.042*v,t+dur*.25); g.gain.linearRampToValueAtTime(.0001,t+dur*1.05);
+  lp.frequency.setValueAtTime(600,t); lp.frequency.linearRampToValueAtTime(1700,t+dur*.6); lp.frequency.linearRampToValueAtTime(800,t+dur);
+  lp.connect(g); g.connect(mus.duck); const sg=gain(); sg.gain.value=.9; g.connect(sg); sg.connect(mus.verbIn);
+  ch.forEach(n=>[-9,9].forEach(dt=>{ const o=osc('sawtooth',220*Math.pow(2,n/12),t,dur*1.1); o.detune.value=dt; o.connect(lp); })); }
+function sArp(t,n,v){ const o=osc('square',440*Math.pow(2,n/12),t,MSTEP*.9), lp=filt('lowpass',2400,2), g=gain(); env(g,t,.002,.04*v,MSTEP*.7);
+  o.connect(lp).connect(g); g.connect(mus.duck); g.connect(mus.dIn); }
+function sTom(t,f,v){ const o=osc('sine',f,t,.3); o.frequency.exponentialRampToValueAtTime(f*.5,t+.26); const g=gain(); env(g,t,.001,.5*v,.26); o.connect(g); g.connect(mus.duck);
+  const sg=gain(); sg.gain.value=.7; g.connect(sg); sg.connect(mus.gate); }
+function sLead(t,n,dur,hot){ const fr=440*Math.pow(2,n/12), o=osc('sawtooth',fr,t,dur), o2=osc('sawtooth',fr*1.006,t,dur), lfo=osc('sine',5.6,t,dur), lg=gain();
+  lg.gain.setValueAtTime(0,t); lg.gain.linearRampToValueAtTime(fr*.013,t+Math.min(dur,.5)); lfo.connect(lg); lg.connect(o.frequency); lg.connect(o2.frequency);
+  const lp=filt('lowpass',hot?4200:3000,2), g=gain(); g.gain.setValueAtTime(.0001,t); g.gain.linearRampToValueAtTime(.05,t+.02); g.gain.setValueAtTime(.045,t+dur*.8); g.gain.linearRampToValueAtTime(.0001,t+dur);
+  o.connect(lp); o2.connect(lp); lp.connect(g); g.connect(hot?mus.grit:mus.duck); g.connect(mus.dIn); const sg=gain(); sg.gain.value=.6; g.connect(sg); sg.connect(mus.verbIn); }
+function sStab(t,ch){ const lp=filt('lowpass',2200,2), g=gain(); env(g,t,.003,.07,.5); lp.connect(g); g.connect(mus.duck); const sg=gain(); sg.gain.value=1.2; g.connect(sg); sg.connect(mus.verbIn);
+  ch.forEach(n=>[-12,0,12].forEach(dt=>{ const o=osc('sawtooth',220*Math.pow(2,n/12),t,.6); o.detune.value=dt; o.connect(lp); })); }
 function musicStep(i,t){
+  if(MIAMI) return musicStepMiami(i,t);
   const s=i%16, bar=Math.floor(i/16), Lr=musicLevel(), brk=Lr==='break', L=brk?1:Lr;
   if(mus.crash){ mus.crash=false; mCrash(t); mBoom(t); }
   if(L<0){ if(s===0&&bar%4===0) mDrone(t,MSTEP*64,.07); if(s===0||s===8) mKick(t,.4); return; }
@@ -627,12 +916,12 @@ dmgSphere.renderOrder=999; camera.add(dmgSphere);
 const tunnel=new T.Mesh(new T.RingGeometry(.075,.6,48), new T.MeshBasicMaterial({color:0x000000,transparent:true,opacity:0,depthTest:false,depthWrite:false}));
 tunnel.position.z=-.1; tunnel.renderOrder=998; tunnel.visible=false; camera.add(tunnel);
 
-let state='idle', mode='menu', wave=0, score=0, best=0, hp=5, toSpawn=0, spawnT=0, betweenT=0, overT=0, invuln=0;
+let state='idle', mode='menu', wave=0, score=0, best=0, hp=MIAMI?3:5, toSpawn=0, spawnT=0, betweenT=0, overT=0, invuln=0;
 let streak=0, streakT=0, kills=0, paused=false, headshotSlowCd=0, waveT=0, reinforced=false, frenzyT=0, lastGun=null, lastHand='', lastKillHand='', lastKillT=-9;
 let slowT=0, slowScale=1, timeScale=1, dmgFlash=0, muzzleLightV=0, strobeT=8, strobeBurst=0, moveAmt=0;
 let hudDirty=true, hudTimer=0;
-try{ best=parseInt(localStorage.getItem('lastcall-hall-best')||'0',10)||0; }catch(e){}
-const MAX_HP=5, MAG=12;
+try{ best=parseInt(localStorage.getItem(MIAMI?'lastcall-miami-best':'lastcall-hall-best')||'0',10)||0; }catch(e){}
+const MAX_HP=MIAMI?3:5, MAG=12, BEST_KEY=MIAMI?'lastcall-miami-best':'lastcall-hall-best';
 const mult=()=>Math.min(5,Math.max(1,streak));
 
 /* ---------- guns ---------- */
@@ -710,7 +999,12 @@ for(let i=0;i<2;i++){
 }
 
 /* ---------- enemies ---------- */
-const TYPES={
+const TYPES=MIAMI?{
+  shooter:{top:0xece7dc, pants:0xe4dfd2, hp:1, speed:1.5,  scale:1,    score:100, fire:2.6, shirt:[0xff7ab6,0x7ad8ff,0x161616,0xffd23f]},
+  rusher: {top:0x1fa3a8, pants:0xd9ccb0, hp:1, speed:3.0,  scale:.94,  score:150, fire:0},
+  heavy:  {top:0x121215, pants:0x121215, hp:3, speed:.95,  scale:1.3,  score:300, fire:3.4, shirt:[0xd0106a]},
+  gunner: {top:0x3a8c9c, pants:0x3a8c9c, hp:1, speed:1.25, scale:1.02, score:220, fire:3.2, shirt:[0x161616,0xf4f0e8]},
+}:{
   shooter:{top:0x26262a, pants:0x141416, hp:2, speed:1.4, scale:1,   score:100, fire:2.8},
   rusher: {top:0x5e5e63, pants:0x18181a, hp:1, speed:2.8, scale:.94, score:150, fire:0},
   heavy:  {top:0x101012, pants:0x0e0e10, hp:6, speed:.9,  scale:1.3, score:300, fire:3.6},
@@ -746,6 +1040,8 @@ const chestGeo=()=>rbox(.4,.5,.23,.08,.18);
 function torsoRagGeo(s){ const k='t'+s.toFixed(3); if(geoC[k]) return geoC[k]; return geoC[k]=rbox(.4*s,.5*s,.23*s,.08*s,.18).clone().translate(0,.085*s,0); }
 const shoeMat=new T.MeshLambertMaterial({color:0x0b0b0b}), beltMat=new T.MeshLambertMaterial({color:0x1c1510});
 const HAIRS=[0x15100c,0x2a1c12,0x0c0c0c,0x5a4632,0x8a8a88];
+const goldMat=new T.MeshPhongMaterial({color:0xe8b23a,specular:0xffe9a0,shininess:90}), chainGeo=new T.TorusGeometry(.078,.007,6,20);
+const batGeo=new T.CylinderGeometry(.034,.017,.82,10).translate(0,.41,0), batMat=new T.MeshLambertMaterial({color:0xc89a5a});
 // faces: drawn eyes, brows and mouth on a transparent plane over the head's front, swapped per expression
 const FACE_SET={ neutral:['open','flat','smirk'], neutral_blink:['closed','flat','smirk'], angry:['angry','angry','grimace'], angry_blink:['closed','angry','grimace'],
   pain:['squint','worried','open'], scared:['wide','raised','O'], scream:['wide','angry','scream'], dead:['rolled','flat','slack'],
@@ -815,6 +1111,7 @@ function buildHead(e,k,dead){
     const top=new T.Mesh(rbox(.212*k,.075*k,.232*k,.035*k),hm); top.position.set(0,.096*k,-.006*k); m.add(top);
     const back=new T.Mesh(rbox(.21*k,.13*k,.05*k,.02*k),hm); back.position.set(0,.03*k,-.098*k); m.add(back); }
   if(e.shades){ const gl=new T.Mesh(rbox(.2*k,.048*k,.02*k,.01*k),glassesMat); gl.position.set(0,.02*k,.12*k); m.add(gl); }
+  if(e.stache){ const st=new T.Mesh(rbox(.074*k,.016*k,.014*k,.005*k),lam(e.hair||0x1a1008)); st.position.set(0,-.04*k,.117*k); m.add(st); }
   if(!dead) e.face=face;
   return m;
 }
@@ -836,7 +1133,7 @@ function spawnEnemy(kind,dummy,door){
   const def=TYPES[kind];
   const e={kind,def,hp:def.hp,hits:[],age:dummy?9:0,alive:true,dummy:!!dummy,stop:3.5+Math.random()*3,strafe:Math.random()*6.28,
     walk:0,aim:0,aiming:false,flinch:0,fireT:.9+Math.random()*1.3,attackT:0,vel:new T.Vector3(),
-    mats:{top:lam(def.top),pants:lam(def.pants),skin:lam(SKINS[Math.floor(Math.random()*SKINS.length)])}};
+    mats:{top:(MIAMI&&kind==='rusher')?HAWAII[Math.floor(Math.random()*HAWAII.length)]:lam(def.top),pants:lam(def.pants),skin:lam(SKINS[Math.floor(Math.random()*SKINS.length)])}};
   const g=new T.Group(); e.group=g;
   if(dummy){ const a=Math.random()*6.28, r=4.5+Math.random()*4; g.position.set(Math.sin(a)*r,0,Math.cos(a)*r*.8); pushOut(g.position,.35,0); }
   else {
@@ -846,7 +1143,7 @@ function spawnEnemy(kind,dummy,door){
   const s=def.scale*(.95+Math.random()*.1); e.s=s;
   const inner=new T.Group(); inner.scale.setScalar(s); g.add(inner);
   const M=e.mats; M.sleeve=kind==='rusher'?M.skin:M.top;
-  e.shades=kind==='heavy'||Math.random()<.12; e.hair=kind==='heavy'?null:(Math.random()<.8?HAIRS[Math.floor(Math.random()*HAIRS.length)]:null);
+  e.shades=kind==='heavy'||Math.random()<(MIAMI?.45:.12); e.hair=kind==='heavy'?null:(Math.random()<(MIAMI?.95:.8)?HAIRS[Math.floor(Math.random()*HAIRS.length)]:null); e.stache=MIAMI&&kind!=='heavy'&&Math.random()<.4;
   const hit=(mesh,parent,x,y,z,name,side)=>{ mesh.position.set(x,y,z); mesh.userData={enemy:e,part:name,side}; parent.add(mesh); e.hits.push(mesh); return mesh; };
   const deco=(mesh,parent,x,y,z)=>{ mesh.position.set(x,y,z); parent.add(mesh); return mesh; };
   const mkLeg=(sx,sd)=>{ const leg=new T.Group(); leg.position.set(sx*.1,.86,0); inner.add(leg);
@@ -861,6 +1158,9 @@ function spawnEnemy(kind,dummy,door){
   deco(new T.Mesh(rbox(.335,.04,.225,.015),beltMat),torso,0,.12,0);
   hit(new T.Mesh(chestGeo(),M.top),torso,0,.36,0,'body','');
   deco(new T.Mesh(cylGeo(.055,.14),M.skin),torso,0,.64,0);
+  if(MIAMI){ if(def.shirt) deco(new T.Mesh(rbox(.1,.2,.012,.004),lam(def.shirt[Math.floor(Math.random()*def.shirt.length)])),torso,0,.5,.112);
+    else deco(new T.Mesh(rbox(.09,.12,.01,.004),M.skin),torso,0,.54,.112);
+    const ch=deco(new T.Mesh(chainGeo,goldMat),torso,0,.6,.02); ch.rotation.x=Math.PI/2-.45; }
   const mkArm=(sx,sd)=>{ const arm=new T.Group(); arm.position.set(sx*.245,.55,0); torso.add(arm);
     deco(new T.Mesh(sphGeo(.068),M.sleeve),arm,0,0,0);
     hit(new T.Mesh(capGeo(.056,.32),M.sleeve),arm,0,-.15,0,'arm',sd);
@@ -878,7 +1178,7 @@ function spawnEnemy(kind,dummy,door){
     muzzle=mark(foreR,0,my,.02);
     glint=new T.Sprite(new T.SpriteMaterial({map:glowTex,color:0xff2030,transparent:true,blending:T.AdditiveBlending,depthWrite:false}));
     glint.scale.setScalar(.3); glint.visible=false; muzzle.add(glint);
-  }
+  } else if(MIAMI){ const bat=new T.Mesh(batGeo,batMat); bat.position.set(0,-.34,.02); bat.rotation.x=1.15; foreR.add(bat); }
   e.marks=[ mark(head,0,.255,0), mark(torso,0,.66,0), mark(torso,0,.02,0),
     mark(armL,0,0,0), mark(foreL,0,0,0), mark(foreL,0,-.32,0),
     mark(armR,0,0,0), mark(foreR,0,0,0), mark(foreR,0,-.32,0),
@@ -969,12 +1269,15 @@ function updateEnemy(e,dt){
   const active=!e.dummy && state==='playing' && e.stunT<=0;
   // same floor, or both on the same stair run: chase directly. Otherwise path through the nearest stairs.
   const pr=rampIdx(headPos.x,headPos.z), er=rampIdx(p.x,p.z);
-  const direct=Math.abs(p.y-feet)<.6 || (pr && pr===er);
+  const direct=(Math.abs(p.y-feet)<.6 && !er) || (pr && pr===er);
   let goal0=direct?headPos:navGoal(p,feet);
   const tac=(active && e.sq)?squadGoal(e,p,feet,dist,dt):null; e.sqT=!!tac && !(e.fanT>0);
   if(tac) goal0=tac;
   e.navT=(e.navT||0)-dt;
-  if(e.navT<=0||!e.navGoal){ e.navT=.2; e.navGoal=(e.navGoal||new T.Vector3()).copy(detour(p,goal0,p.y,.42)); e.detouring=e.navGoal.distanceToSquared(goal0)>.01; }
+  if(e.navT<=0||!e.navGoal){ e.navT=.2; e.navGoal=e.navGoal||new T.Vector3(); const dg=detour(p,goal0,p.y,.42);
+    if(MIAMI && p.y<.6 && dg!==goal0 && !rampIdx(p.x,p.z)){ const st=STAIRS.find(s=>s.bot===goal0||s.botIn===goal0);
+      if(!navStep(st?'st'+st.i:'pl',p,e.navGoal)) e.navGoal.copy(dg); e.detouring=true; }
+    else { e.navGoal.copy(dg); e.detouring=e.navGoal.distanceToSquared(goal0)>.01; } }
   const goal=e.detouring?e.navGoal:goal0;
   const gx=goal.x-p.x, gz=goal.z-p.z, gd=Math.max(.01,Math.hypot(gx,gz));
   e.losT-=dt;
@@ -1405,7 +1708,7 @@ function firePellet(origin,dir){
 
 /* ---------- weapon pickups ---------- */
 let pickups=[];
-const PICK_SPOTS=[[0,0,3],[-7,0,-1],[7,0,4],[-3,0,7.5],[3,0,-7.5],[-7,0,-8],[0,UP_Y,-8],[-6,UP_Y,-7.5],[6,UP_Y,-8.5]];
+const PICK_SPOTS=MIAMI?[[0,0,3],[-7.6,0,1.3],[7,0,4],[-3,0,7.5],[0,0,-7.2],[-7,0,-7.6],[0,UP_Y,-8],[-6,UP_Y,-7.5],[6,UP_Y,-8.5]]:[[0,0,3],[-7,0,-1],[7,0,4],[-3,0,7.5],[3,0,-7.5],[-7,0,-8],[0,UP_Y,-8],[-6,UP_Y,-7.5],[6,UP_Y,-8.5]];
 const ringGeo=new T.RingGeometry(.32,.4,32), ringMat=new T.MeshBasicMaterial({color:RED,transparent:true,opacity:.8,blending:T.AdditiveBlending,depthWrite:false,side:T.DoubleSide});
 function spawnPickup(kind,pos){
   const g=new T.Group(); g.position.set(pos.x,groundAt(pos.x,pos.z,pos.y+.3),pos.z);
@@ -1502,11 +1805,11 @@ function killEnemy(e,point,dir,partName,side,meleeForce,forceDrop){
   const drop=forceDrop || (!melee && !head && forceMul<=1.2 && (partName==='leg'?Math.random()<.6:partName==='body'?Math.random()<.35:partName==='arm'?Math.random()<.2:false));
   let label=melee?'PISTOL WHIP':head?'HEADSHOT':drop?'DOWN':''; if(mvTag) label=label?label+' · '+mvTag:mvTag;
   popup(point.clone().add(new T.Vector3(0,.25,0)), label||'+'+pts, label?'+'+pts:'', label?'#e9e7e2':'#bdbab3', 1, 1.1);
-  if(STREAK_NAMES[streak]){ popupFront(STREAK_NAMES[streak],'×'+mult(),'#e0162b',1.3,1.4); sfxStreak(); }
+  if(STREAK_NAMES[streak]){ popupFront(STREAK_NAMES[streak],'×'+mult(),ACCS,1.3,1.4); sfxStreak(); }
   if(lastGun){ lastGun.ammo=Math.min(MAG,lastGun.ammo+2); syncPips(); }
   btMeter=Math.min(1,btMeter+(head?.16:.1)+(mvTag?.08:0));
-  if(streak>=5 && streak%5===0){ frenzyT=5; popupFront('FRENZY','5 SECONDS · NO RELOADS','#e0162b',1.6,1.6); sfxWhoosh(); buzz('both',.6,150); }
-  if(renderer.xr.isPresenting && lastHand && lastKillHand && lastHand!==lastKillHand && tAll-lastKillT<1.2){ const b=100*mult(); score+=b; popup(point.clone().add(new T.Vector3(0,.6,0)),'AKIMBO','+'+b,'#e0162b',.9,1.1); }
+  if(streak>=5 && streak%5===0){ frenzyT=5; popupFront('FRENZY','5 SECONDS · NO RELOADS',ACCS,1.6,1.6); sfxWhoosh(); buzz('both',.6,150); }
+  if(renderer.xr.isPresenting && lastHand && lastKillHand && lastHand!==lastKillHand && tAll-lastKillT<1.2){ const b=100*mult(); score+=b; popup(point.clone().add(new T.Vector3(0,.6,0)),'AKIMBO','+'+b,ACCS,.9,1.1); }
   lastKillHand=lastHand; lastKillT=tAll;
   const force=(melee?meleeForce:head?5:(e.kind==='heavy'?4:6.5))*(melee?1:forceMul);
   enemies.forEach(o=>{ if(o!==e && !o.dummy && o.kind!=='heavy' && o.group.position.distanceTo(e.group.position)<6) o.scaredT=1.4+Math.random()*.6; });
@@ -1533,7 +1836,7 @@ function deflect(pr){
 }
 function nearMiss(pr){
   score+=75*mult(); hudDirty=true;
-  popup(pr.m.position.clone(),'CLOSE','','#e0162b',.6,.9);
+  popup(pr.m.position.clone(),'CLOSE','',ACCS,.6,.9);
   slowmo(.3,.7); sfxWhoosh(); buzz('both',.3,60);
 }
 function hurtPlayer(){
@@ -1555,9 +1858,9 @@ function startGame(){
   nextWave();
 }
 function nextWave(){
-  wave++; toSpawn=4+wave*2; spawnT=1.2; state='playing'; hudDirty=true; musicDrop(); waveT=0; reinforced=false;
+  wave++; toSpawn=(MIAMI?5:4)+wave*2; spawnT=1.2; state='playing'; hudDirty=true; musicDrop(); waveT=0; reinforced=false;
   if(wave>=2){ const spots=PICK_SPOTS.slice().sort(()=>Math.random()-.5); for(let k=0;k<(wave>=4?2:1);k++){ const [x,y,z]=spots[k]; spawnPickup(Math.random()<.5?'mg':'shotgun',new T.Vector3(x,y,z)); } }
-  popupFront('WAVE '+wave, wave===1?'BOTH FLOORS. WATCH THE BALCONY':'', '#e9e7e2', 1.6, 2.2);
+  popupFront('WAVE '+wave, wave===1?(MIAMI?'NOBODY LEAVES THE PALMERA':'BOTH FLOORS. WATCH THE BALCONY'):'', '#e9e7e2', 1.6, 2.2);
 }
 function checkWaveClear(){
   if(state!=='playing'||toSpawn>0||enemies.some(e=>!e.dummy)||ragdolls.some(r=>r.living)) return;
@@ -1569,12 +1872,13 @@ function gameOver(){
   state='over'; overT=0; hudDirty=true;
   projectiles.slice().forEach(removeProj); bottles.slice().forEach(b=>removeBottle(b)); frenzyT=0;
   enemies.forEach(e=>{ e.dummy=true; e.aiming=false; });
-  if(score>best){ best=score; try{ localStorage.setItem('lastcall-hall-best',String(best)); }catch(e){} }
+  if(score>best){ best=score; try{ localStorage.setItem(BEST_KEY,String(best)); }catch(e){} }
   slowmo(.25,1.4);
-  popupFront('LAST CALL','SCORE '+score.toLocaleString()+' · TRIGGER TO GO AGAIN', '#e0162b', 1.8, 5);
+  popupFront('LAST CALL','SCORE '+score.toLocaleString()+' · TRIGGER TO GO AGAIN', ACCS, 1.8, 5);
 }
 function pickKind(){
   const r=Math.random();
+  if(MIAMI){ if(wave>=4&&r<.12) return 'heavy'; if(wave>=3&&r<.3) return 'gunner'; if(r<(wave>=2?.6:.42)) return 'rusher'; return 'shooter'; }
   if(wave>=4&&r<.14) return 'heavy';
   if(wave>=3&&r<.32) return 'gunner';
   if(wave>=2&&r<.54) return 'rusher';
@@ -1585,7 +1889,7 @@ function pickKind(){
 function drawHud(){
   const g=wctx, W=384, H=192;
   g.clearRect(0,0,W,H); g.fillStyle='rgba(8,8,8,.88)'; g.fillRect(0,0,W,H);
-  g.fillStyle='#e0162b'; g.fillRect(0,0,6,H);
+  g.fillStyle=ACCS; g.fillRect(0,0,6,H);
   g.textBaseline='alphabetic'; g.textAlign='left';
   if(state==='idle'||state==='ready'){
     g.fillStyle='#e9e7e2'; g.font=`900 64px ${DISPLAY}`; g.fillText('LAST CALL',22,80);
@@ -1596,12 +1900,12 @@ function drawHud(){
     g.fillText('WAVE',22,34); g.fillText('SCORE',110,34); g.fillText('STREAK',280,34);
     g.font=`900 60px ${DISPLAY}`; g.fillStyle='#e9e7e2';
     g.fillText(String(wave).padStart(2,'0'),22,96); g.fillText(score.toLocaleString(),110,96);
-    g.fillStyle=mult()>1?'#e0162b':'#5a5852'; g.fillText('×'+mult(),280,96);
-    for(let i=0;i<MAX_HP;i++){ g.fillStyle=i<hp?'#e0162b':'#2a2928'; g.fillRect(22+i*30,122,22,22); }
+    g.fillStyle=mult()>1?ACCS:'#5a5852'; g.fillText('×'+mult(),280,96);
+    for(let i=0;i<MAX_HP;i++){ g.fillStyle=i<hp?ACCS:'#2a2928'; g.fillRect(22+i*30,122,22,22); }
     g.fillStyle='#8a8780'; g.font=`600 16px ${MONO}`; g.fillText(kills+' DOWN',190,141);
     for(let i=0;i<2;i++){ g.fillStyle=i<dashCharges?'#e9e7e2':'#2a2928'; g.fillRect(300+i*26,126,18,14); }
     g.fillStyle='#2a2928'; g.fillRect(22,160,330,10); g.fillStyle=btActive?'#9db8ff':'#5f7fb0'; g.fillRect(22,160,330*btMeter,10);
-    if(state==='over'){ g.fillStyle='rgba(8,8,8,.9)'; g.fillRect(6,0,W,H); g.fillStyle='#e0162b'; g.font=`900 60px ${DISPLAY}`; g.fillText('LAST CALL',22,82);
+    if(state==='over'){ g.fillStyle='rgba(8,8,8,.9)'; g.fillRect(6,0,W,H); g.fillStyle=ACCS; g.font=`900 60px ${DISPLAY}`; g.fillText('LAST CALL',22,82);
       g.fillStyle='#e9e7e2'; g.font=`600 20px ${MONO}`; g.fillText(score.toLocaleString()+' · WAVE '+wave,22,122); g.fillStyle='#8a8780'; g.fillText('TRIGGER TO GO AGAIN',22,160); }
   }
   wristTex.needsUpdate=true;
@@ -1690,18 +1994,18 @@ function locomotion(realDt){
 const PADS=[[-3,0,1.5,-3,UP_Y,-8,1.3],[3,0,1.5,3,UP_Y,-8,1.3],[0,UP_Y,-8.5,0,0,5,1.4]].map(([x,y,z,tx,ty,tz,ft])=>{
   const g=new T.Group(); g.position.set(x,y,z); scene.add(g);
   const disc=new T.Mesh(new T.CylinderGeometry(.6,.66,.06,32),new T.MeshLambertMaterial({color:0x151515})); disc.position.y=.03; g.add(disc);
-  const ringMat=new T.MeshBasicMaterial({color:RED}); const ring=new T.Mesh(new T.RingGeometry(.46,.56,40),ringMat); ring.rotation.x=-Math.PI/2; ring.position.y=.065; g.add(ring);
+  const ringMat=new T.MeshBasicMaterial({color:MIAMI?CYAN:RED}); const ring=new T.Mesh(new T.RingGeometry(.46,.56,40),ringMat); ring.rotation.x=-Math.PI/2; ring.position.y=.065; g.add(ring);
   // a chevron pointing where it throws you
   const shp=new T.Shape(); shp.moveTo(0,.26); shp.lineTo(.2,.02); shp.lineTo(.1,.02); shp.lineTo(0,.14); shp.lineTo(-.1,.02); shp.lineTo(-.2,.02); shp.closePath();
   const chev=new T.Mesh(new T.ShapeGeometry(shp),ringMat); chev.rotation.x=-Math.PI/2; chev.position.y=.066; chev.rotation.z=Math.atan2(-(tx-x),-(tz-z)); g.add(chev);
-  const glow=new T.Sprite(new T.SpriteMaterial({map:glowTex,color:0xff2030,transparent:true,opacity:.5,blending:T.AdditiveBlending,depthWrite:false})); glow.scale.set(1.4,.5,1); glow.position.y=.2; g.add(glow);
+  const glow=new T.Sprite(new T.SpriteMaterial({map:glowTex,color:MIAMI?0x30e8ff:0xff2030,transparent:true,opacity:.5,blending:T.AdditiveBlending,depthWrite:false})); glow.scale.set(1.4,.5,1); glow.position.y=.2; g.add(glow);
   const dist=Math.hypot(tx-x,tz-z), vy0=(ty-y+.5*17*ft*ft)/ft;
   return {x,y,z,ringMat,glow,dir:new T.Vector3((tx-x)/dist,0,(tz-z)/dist),vh:dist/ft,vy:vy0,ft,cool:0};
 });
 let padT=0;
 function updatePads(realDt){
   const pulse=.5+.5*Math.sin(tAll*6);
-  PADS.forEach(pd=>{ pd.cool-=realDt; pd.glow.material.opacity=.3+pulse*.4; pd.ringMat.color.setRGB(.6+pulse*.4,.04,.1);
+  PADS.forEach(pd=>{ pd.cool-=realDt; pd.glow.material.opacity=.3+pulse*.4; if(MIAMI) pd.ringMat.color.setRGB(.05,.55+pulse*.45,.75+pulse*.25); else pd.ringMat.color.setRGB(.6+pulse*.4,.04,.1);
     if(!(mode==='vr'||mode==='desktop')||!grounded||pd.cool>0) return;
     if(Math.hypot(headPos.x-pd.x,headPos.z-pd.z)<.62 && Math.abs(rig.position.y-pd.y)<.35){
       pv.copy(pd.dir).multiplyScalar(pd.vh); vy=pd.vy; grounded=false; airJumps=1; peakY=rig.position.y; padT=pd.ft*.92; pd.cool=1;
@@ -1728,7 +2032,7 @@ function stomp(){
     else { e.react={type:'chest',t:0,dur:.9,sx:1,side:'R'}; e.stunT=1; moveEntity(p,dir.x*1.2,dir.z*1.2,.35,p.y); } });
   ragdolls.forEach(r=>{ const c=r.pts[2].c; if(Math.hypot(c.x-headPos.x,c.z-headPos.z)<R) impulse(r,c,new T.Vector3(c.x-headPos.x,.9,c.z-headPos.z).normalize(),5); });
   sparkBurst(new T.Vector3(headPos.x,rig.position.y+.05,headPos.z),16,true); sfxStomp(); buzz('both',1,200);
-  if(n){ popupFront('STOMP','','#e0162b',1.1,1); slowmo(.4,.35); }
+  if(n){ popupFront('STOMP','',ACCS,1.1,1); slowmo(.4,.35); }
 }
 
 /* ---------- desktop controls ---------- */
@@ -1790,6 +2094,11 @@ vrBtn.addEventListener('click',async()=>{
     s.addEventListener('end',()=>{ mode='menu'; state='idle'; overlay.hidden=false; resetRig(); camera.position.set(0,1.6,0); spawnDummies(); hudDirty=true; tunnel.visible=false; });
   }catch(err){ vrNote.textContent='Could not start VR: '+(err&&err.message||err); }
 });
+document.querySelectorAll('button.map').forEach(b=>{ b.setAttribute('aria-pressed',String(b.dataset.map===MAP));
+  b.addEventListener('click',()=>{ if(b.dataset.map===MAP) return; let stored=false; try{ localStorage.setItem('lastcall-map',b.dataset.map); stored=localStorage.getItem('lastcall-map')===b.dataset.map; }catch(e){}
+    const u=new URL(location.href); if(stored) u.searchParams.delete('map'); else u.searchParams.set('map',b.dataset.map);
+    if(u.href===location.href) location.reload(); else location.replace(u.href); }); });
+if(MIAMI){ $('tag').innerHTML='Miami, 1989, 3 a.m. The Palmera: a mob disco on the strip, two floors of neon, white leather and a VIP room out back. <b>Everyone in here wears white. Not for long.</b>'; document.title='Last Call: Miami \'89'; }
 $('musicBtn').textContent='Music: '+(musicOn?'on':'off');
 $('musicBtn').addEventListener('click',()=>{ setMusicOn(!musicOn); });
 $('deskBtn').addEventListener('click',()=>{
@@ -1824,13 +2133,13 @@ function loop(){
 
   // light: red breathing, fluorescent hum, strobe bursts
   redLights.forEach((l,i)=>{ l.intensity=2+Math.sin(tAll*.5+i*2)*.4; });
-  updateDJ(realDt);
+  updateDJ(realDt); if(MIAMI) updateMiami(realDt);
   const hum=Math.random()<.006?.25:1; fluoroMat.color.setScalar(.88*hum); pool.intensity=2.4*hum;
   strobeT-=realDt;
   if(strobeT<=0){ strobeBurst=.9+Math.random()*.9; strobeT=9+Math.random()*10; }
   if(strobeBurst>0){ strobeBurst-=realDt; const on=Math.floor(tAll*16)%2===0; strobe.intensity=on?4:0; tubeMats.forEach(m=>m.color.setHex(on?0xffffff:RED)); }
   else { strobe.intensity=0; tubeMats.forEach(m=>m.color.setHex(RED)); }
-  DOORS.forEach(d=>{ d.flash=Math.max(0,d.flash-realDt*.8); d.lampMat.color.setRGB(.35+d.flash*.65*(Math.floor(tAll*8)%2?1:.3),.03,.06); });
+  DOORS.forEach(d=>{ d.flash=Math.max(0,d.flash-realDt*.8); const lv=.35+d.flash*.65*(Math.floor(tAll*8)%2?1:.3); d.lampMat.color.setRGB(lv,lv*(MIAMI?.17:.086),lv*(MIAMI?.6:.17)); });
   muzzleLightV=Math.max(0,muzzleLightV-realDt*30); muzzleLight.intensity=muzzleLightV;
 
   // guns
@@ -1870,10 +2179,11 @@ function loop(){
       waveT+=dt;
       if(!reinforced && waveT>26+wave*2 && alive<cap){ reinforced=true; const d=pickDoor();
         spawnSquad(['rusher','rusher','rusher'],d);
-        popupFront('REINFORCEMENTS','','#e0162b',1.2,1.6); }
+        popupFront('REINFORCEMENTS','',ACCS,1.2,1.6); }
     } else if(state==='between'){ betweenT-=dt; if(betweenT<=0) nextWave(); }
     else if(state==='over'){ overT+=realDt; }
 
+    if(MIAMI){ NAV.plT-=realDt; if(NAV.plT<=0){ NAV.plT=.25; navField('pl',headPos.x,headPos.z); } }
     collectAimRays();
     enemies.slice().forEach(e=>{ if(e.alive) updateEnemy(e,dt); });
     ragdolls.slice().forEach(r=>updateRagdoll(r,dt));
@@ -1912,7 +2222,7 @@ function loop(){
 // the DJ: up in the booth, headphones on, eyes shut, riding the actual beat
 let dj=null;
 function makeDJ(){
-  const e={mats:{top:lam(0x111113),pants:lam(0x0c0c0e),skin:lam(0x8d5a3b)},hair:0x0c0c0c,shades:false};
+  const e={mats:{top:MIAMI?HAWAII[1]:lam(0x111113),pants:lam(MIAMI?0xe8e2d4:0x0c0c0e),skin:lam(0x8d5a3b)},hair:0x0c0c0c,shades:MIAMI,stache:MIAMI};
   const g=new T.Group(); g.position.set(0,UP_Y,-HZ+.6); scene.add(g);
   const add=(geo,mat,parent,x,y,z)=>{ const m=new T.Mesh(geo,mat); m.position.set(x,y,z); parent.add(m); return m; };
   [-1,1].forEach(sx=>{ const leg=new T.Group(); leg.position.set(sx*.1,.86,0); g.add(leg); add(capGeo(.078,.86),e.mats.pants,leg,0,-.43,0); });
@@ -1952,7 +2262,8 @@ function updateDJ(dt){
 }
 makeDJ();
 spawnDummies(); syncPips();
-(document.fonts&&document.fonts.ready?document.fonts.ready:Promise.resolve()).then(()=>{ textCache.clear(); hudDirty=true; });
+(document.fonts&&document.fonts.ready?document.fonts.ready:Promise.resolve()).then(()=>{ textCache.clear(); hudDirty=true; if(MIAMI) MI.signs.forEach(drawSign); });
+if(MIAMI && document.fonts && document.fonts.load) document.fonts.load('64px Monoton').then(()=>MI.signs.forEach(drawSign)).catch(()=>{});
 renderer.setAnimationLoop(loop);
 })();
 </script>

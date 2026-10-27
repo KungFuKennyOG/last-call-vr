@@ -1,7 +1,7 @@
 {
   "name": "Last Call VR",
   "short_name": "Last Call",
-  "description": "Gory wave shooter in a brutalist concrete club for Quest 3: free movement, ragdolls, headshots that take heads off.",
+  "description": "Gory wave shooter for Quest 3: a brutalist techno bunker or a neon Miami disco: free movement, ragdolls, headshots that take heads off.",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
