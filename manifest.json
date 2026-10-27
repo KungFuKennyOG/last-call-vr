@@ -1,13 +1,13 @@
 {
   "name": "Last Call VR",
   "short_name": "Last Call",
-  "description": "Gory nightclub wave shooter for Quest 3: dual pistols, ragdolls, headshots that take heads off.",
+  "description": "Gory wave shooter in a brutalist concrete club for Quest 3: free movement, ragdolls, headshots that take heads off.",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
   "orientation": "landscape",
-  "background_color": "#07040d",
-  "theme_color": "#07040d",
+  "background_color": "#0a0a0a",
+  "theme_color": "#0a0a0a",
   "icons": [
     { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
     { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
