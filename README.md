@@ -4,6 +4,8 @@ A gory wave shooter for Meta Quest 3, set in a brutalist concrete techno club, b
 
 **Play:** https://kungfukennyog.github.io/last-call-vr/ in the Quest browser, then hit **Enter VR**.
 
+Also in this repo: **[Showdowns](#showdowns)**, seven short themed levels, and **[Last Drop](#last-drop-in-development)**, a story campaign in development.
+
 ## Maps
 
 Pick the map on the title screen before you hit Enter VR (or open the link with `?map=miami`).
@@ -76,6 +78,21 @@ Browser: `WASD` walk, `Space` jump, `E` bullet time, `G` throw, `F` melee, `R` r
 Built for the Quest 3: static scenery is merged into a handful of draws, each enemy's body parts are merged per joint, corpses that stop moving are baked flat, blood, sparks, smoke, fire, decals, doves and rain are all instanced or batched, and the level lights stay at a handful. The busiest view in any level is around 150 draw calls per eye. Your frame rate shows in the corner of the wrist screen (it turns red under 65).
 
 The Uzi and the sawed-off (in both games) show their remaining rounds on a small counter on top of the gun; the sawed-off also has two shell lights for its barrels, and the wrist screen shows the count.
+
+## Last Drop (in development)
+
+A seven-chapter campaign over one rainy night, in a PS1-style look. Two couriers, Mo and Vee, pick up the wrong order from a ghost kitchen: a bag with a hardware wallet holding a syndicate's money. By midnight there's a bounty on them, and every crew in the city wants the bag. Light-hearted buddy action with cartoonish gore. Play it alone, or later in 2-player co-op with any mix of Quest and computer. Progress saves as old-school password codes.
+
+**Status:** not playable yet. The chapter 1 rules (password codes, the bag, stun and recovery, checkpoints, disarms, the first boss) are written and tested in `drop/`, and the shared engine is being split out of the two games so the campaign can build on it. Progress is tracked in the [issues](https://github.com/KungFuKennyOG/last-call-vr/issues) and [milestones](https://github.com/KungFuKennyOG/last-call-vr/milestones), one milestone per phase.
+
+| Phase | What it delivers |
+| --- | --- |
+| 0. Dev tooling | Checks and tests Claude can run on its own (done) |
+| 1. Engine split | Shared modules for both games, no visible change |
+| 2. Chapter 1 | The first chapter, solo, start to finish |
+| 3. Chapters 4 and 7 | A short campaign with all three endings |
+| 4. Full campaign | All seven chapters, solo |
+| 5. Co-op and cross-play | Two players, VR or computer, voice chat |
 
 ## Install on the Quest
 
