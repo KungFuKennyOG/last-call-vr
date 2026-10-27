@@ -26,6 +26,8 @@ export function createChapter({ scene, camera, world, player, data, on }) {
   function apply(r) {
     C.run = r.state;
     for (const o of r.out) {
+      // a new beat closes every door behind you; the runner opens the way on when it's time
+      if (o.type === 'beat') { C.unlocked = {}; if (C.space) for (const d of C.space.doors) d.setLocked(true); }
       if (o.type === 'unlock' || o.type === 'lock') { C.unlocked[o.door] = o.type === 'unlock'; const d = C.space && C.space.door(o.door); if (d) d.setLocked(o.type === 'lock'); }
       on.out(o);
     }

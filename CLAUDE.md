@@ -122,7 +122,7 @@ How chapter 1 hangs together: `ch1/` is data (spaces, beats, script). `runner.js
 - Slow-mo in co-op is one shared meter that always slows the whole world. Both players triggering within 0.5 s gives synced slow-mo.
 - Voice chat runs over the same WebRTC connection, positional, with a radio filter when players are apart.
 - Fist bumps and high fives work any time no enemies are around.
-- Art direction is locked to the settings above.
+- Art direction is locked to the settings above, with one change Kenny asked for after playing it: in the headset, vertex wobble and warped textures are off (`VR_SNAP`, `VR_AFFINE` in `drop/render/ps1.js`). Up close in VR the warp smeared whole walls and per-eye snapping shimmered. The browser keeps both.
 - Tone: a light-hearted buddy action comedy (Mo the deadpan veteran, Vee the reckless rookie). Gore and slow deaths are over the top and cartoonish: big bright pixel blood, slapstick ragdolls, enemies who complain while they crawl. A few beats (the chapter 6 betrayal, the ending choice) are played with heart.
 
 ## Asking for a headset check

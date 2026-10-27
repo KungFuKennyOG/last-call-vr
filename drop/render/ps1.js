@@ -11,6 +11,8 @@
 import * as THREE from 'three';
 
 export const LINES = 480;
+/** Vertex wobble and warped textures in the headset (1 = on). Off: see createPs1Frame. */
+export const VR_SNAP = 0, VR_AFFINE = 0;
 
 /** Shared uniforms: every material holds these same objects, so one change updates all of them. */
 export const U = {
@@ -184,13 +186,17 @@ export function createPs1Frame(renderer) {
         const vp = renderer.xr.getCamera().cameras[0]?.viewport;
         const fh = vp && vp.w ? vp.w : 1800, fw = vp && vp.z ? vp.z : 1700;
         U.uRes.value.set(Math.round(LINES * fw / fh), LINES); U.uPix.value = Math.max(1, Math.round(fh / LINES));
+        // In the headset the wobble and the warp are off: up close and across a headset's field of view, affine
+        // mapping smears whole walls, and each eye snapping to its own grid makes surfaces shimmer in depth.
+        // The PS1 look carries on in the tiny unfiltered textures, the dither, the vertex light and the fog.
+        U.uSnap.value = VR_SNAP; U.uAffine.value = VR_AFFINE;
         renderer.render(scene, camera);
         return;
       }
       renderer.getDrawingBufferSize(size);
       const h = LINES, w = Math.max(1, Math.round(h * size.x / Math.max(1, size.y)));
       if (rt.width !== w || rt.height !== h) rt.setSize(w, h);
-      U.uRes.value.set(w, h); U.uPix.value = 1;
+      U.uRes.value.set(w, h); U.uPix.value = 1; U.uSnap.value = 1; U.uAffine.value = 1;
       renderer.setRenderTarget(rt); renderer.render(scene, camera);
       renderer.setRenderTarget(null); renderer.render(blitScene, blitCam);
     },

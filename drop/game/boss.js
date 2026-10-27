@@ -63,7 +63,7 @@ export function createBoss({ scene, cast, enemies, fx, player, G }) {
     enemies.remove(e);
     e.torso.getWorldPosition(v);
     enemies.ragdoll(e, v.clone(), new THREE.Vector3(0, .2, -1), 'body', '', 7, false);
-    G.hud.boss = null; G.hud.dirty = true;
+    G.hud.boss = null; G.hud.dirty = true; G.music.hit();
     G.chapter.fire('expediter:defeated');
   }
 

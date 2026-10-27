@@ -19,6 +19,8 @@ import { createSetPiece } from './setpiece.js';
 import { createWrist } from '../ui/wrist.js';
 import { createVoice } from '../ui/voice.js';
 import { createCards } from '../ui/cards.js';
+import { createSubtitles } from '../ui/subtitles.js';
+import { createScore } from '../audio/score.js';
 import { pickLines, initialRadio, radioPush, radioTick, radioClear } from '../radio.js';
 import { takeCheckpoint, restoreCheckpoint } from '../checkpoint.js';
 import { finishChapter } from '../save.js';
@@ -48,6 +50,8 @@ export function createGame({ renderer, scene, camera, rig, world, player, hud, b
   G.boss = createBoss({ scene, cast: G.cast, enemies: G.enemies, fx: G.fx, player, G });
   G.voice = createVoice({ where: who => { if (who === 'mo' && G.mo) return G.mo.group.position.clone().setY(1.8); const e = G.enemies.list.find(x => (who === 'expediter' ? x.boss : who === 'grabber' ? x.type === 'grabber' : !x.boss)); return e ? e.group.position.clone().setY(1.6) : null; } });
   G.cards = createCards({ scene, camera });
+  G.subs = createSubtitles({ scene });
+  G.music = createScore();
   G.canShoot = () => G.stun.canShoot();
   // in the headset, the big messages float in front of you instead of on the browser HUD
   const hudMessage = hud.message;
@@ -107,9 +111,10 @@ export function createGame({ renderer, scene, camera, rig, world, player, hud, b
     const r = radioTick(radio, realT); radio = r.state;
     if (r.started) {
       const l = r.started, here = l.who === 'mo' && !G.moOnRadio; // at the counter Mo is right there, not on the radio
-      G.voice.say({ ...l, here }); hud.subtitle({ label: here ? 'MO' : LABEL[l.who] || l.who.toUpperCase(), text: l.text, who: l.who }); G.wristDirty = true;
+      const sub = { label: here ? 'MO' : LABEL[l.who] || l.who.toUpperCase(), text: l.text, who: l.who };
+      G.voice.say({ ...l, here }); hud.subtitle(sub); if (mode() === 'vr') G.subs.show(sub);
     }
-    else if (!radio.now && hud.sub) { hud.subtitle(null); G.wristDirty = true; }
+    else if (!radio.now && hud.sub) { hud.subtitle(null); G.subs.show(null); }
   }
 
   /* ---------- hits on you, enemies leaving the fight ---------- */
@@ -144,7 +149,7 @@ export function createGame({ renderer, scene, camera, rig, world, player, hud, b
     G.debris.forEach(d => scene.remove(d.m)); G.debris.length = 0;
     G.arms.clearFlying();
   }
-  function clearFight() { leaveSpace(); radio = radioClear(); hud.subtitle(null); }
+  function clearFight() { leaveSpace(); radio = radioClear(); hud.subtitle(null); G.subs.show(null); }
   /** Back to the last checkpoint: the space rebuilt, its enemies back, you on your feet with the bag. */
   G.restartCheckpoint = reason => {
     if (G.state !== 'playing' || G.restarting) return;
@@ -177,7 +182,7 @@ export function createGame({ renderer, scene, camera, rig, world, player, hud, b
     G.arms.reset(); G.stun.chapterStart();
     chapter.unlocked = {}; chapter.t = 0;
     chapter.load('counter'); G.bag.toCounter(chapter.space);
-    G.state = 'playing';
+    G.state = 'playing'; G.music.start(); fightHold = 0;
     chapter.start(0);
     G.fx.popupFront('WRONG ORDER', '11 P.M. · A GHOST KITCHEN', '#ff7a1a', .9, 3);
   };
@@ -212,6 +217,18 @@ export function createGame({ renderer, scene, camera, rig, world, player, hud, b
   };
 
   /* ---------- every frame ---------- */
+  /** How hard the music goes: 0 calm, 1 tension, 2 fight, 3 boss, 4 results. A fight holds a few seconds after the last cook drops. */
+  let fightHold = 0;
+  function musicLevel(realDt) {
+    if (G.state === 'results') return 4;
+    if (G.state !== 'playing') return 0;
+    if (G.boss.e && G.boss.e.alive && G.boss.started) return 3;
+    const fighting = G.enemies.list.some(e => e.alive && e.alert && !e.idle);
+    fightHold = fighting ? 5 : Math.max(0, fightHold - realDt);
+    if (fightHold > 0) return 2;
+    if (G.enemies.list.some(e => e.idle) || G.boss.e || (chapter.run.fired || []).includes('pickup:noticed') || G.restarting) return 1;
+    return 0;
+  }
   let wristT = 0, realT = 0;
   G.update = (dt, realDt, t) => {
     realT += realDt;
@@ -233,13 +250,15 @@ export function createGame({ renderer, scene, camera, rig, world, player, hud, b
     for (const d of G.debris.slice()) { d.life -= dt; d.v.y -= 9.8 * dt; d.m.position.addScaledVector(d.v, dt); if (d.m.position.y < .03) { d.m.position.y = .03; d.v.set(0, 0, 0); } if (d.life <= 0) { scene.remove(d.m); G.debris.splice(G.debris.indexOf(d), 1); } }
     G.fx.update(dt, realDt);
     radioUpdate(realT);
+    G.music.level = musicLevel(realDt); G.music.update(!!radio.now);
+    if (mode() === 'vr') G.subs.update(realDt, player.headPos, player.headDir);
     hud.bt = bt.meter; hud.btOn = bt.active; if (bt.active) hud.dirty = true;
     wristT -= realDt;
     if ((G.wristDirty && wristT <= 0) || wristT < -.5) {
       wristT = .12; G.wristDirty = false;
       const st = G.stun.state.players.p1, stunLeft = st.status === 'stunned' ? Math.max(0, st.until - chapter.t) : -1;
       const h = G.bag.state && G.bag.state.holder.kind;
-      G.wrist.draw({ hp: player.hp, bt: bt.meter, btOn: bt.active, bounty: G.bounty, fps: hud.fps, sub: hud.sub, shots: G.stun.shots(), stun: stunLeft, boss: hud.boss,
+      G.wrist.draw({ hp: player.hp, bt: bt.meter, btOn: bt.active, bounty: G.bounty, fps: hud.fps, sub: null, shots: G.stun.shots(), stun: stunLeft, boss: hud.boss,
         bag: G.bag.onCounter ? 'BAG ON COUNTER' : h === 'player' ? 'BAG OK' : h === 'enemy' ? 'BAG STOLEN!' : 'BAG ON FLOOR', note: G.note || '', notifyT: 0 });
     }
   };

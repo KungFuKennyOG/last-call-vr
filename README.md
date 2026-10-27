@@ -95,6 +95,7 @@ A seven-chapter campaign over one rainy night, in a PS1-style look. Two couriers
 - Grip picks things up (Q in the browser): a dropped Uzi, a cleaver (trigger throws it, and it kills), the extinguisher on the wall (hold the trigger to spray: puts out fires, chokes cooks). With nothing in reach, grip throws what you picked up, and B throws whatever you hold, pistol included (a fresh one twirls into your hand); a thrown gun stuns.
 - Shoot a fryer and burning oil blocks the lane in front of it. Shoot the extinguisher for a white cloud.
 - Out of health means stunned, not dead: the world goes grey and you can't shoot. Grip near your chest to take the adrenaline shot, then stab it down into your thigh (H in the browser). One per chapter.
+- The soundtrack is synthesized jungle that follows the fight: calm at the counter, breaks and a reese bass when the cooks come, sirens for the boss. M (or the title button) turns it off.
 - Checkpoints are taken at each door. Codes and cheats go in the box on the title screen, or on the keypad in VR. Try `BIGHEADS`, `SLOWSLOW` or `ONEHITKO`.
 
 | Phase | What it delivers |

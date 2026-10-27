@@ -61,7 +61,7 @@ vrBtn.addEventListener('click', async () => {
   try {
     const s = await enterVR(renderer);
     mode = 'vr'; $('overlay').hidden = true; hud.show('vr'); G.arms.desk.root.visible = false;
-    setTimeout(toTitle, 300);
+    setTimeout(toTitle, 300); G.music.start();
     s.addEventListener('end', () => { camera.position.set(0, 1.6, 0); camera.rotation.set(0, 0, 0); Object.assign(G.chapter, { inTransit: false, fadeDir: 0, fading: 0, pending: null }); mode = 'menu'; G.state = 'menu'; title.keypad.group.visible = false; $('overlay').hidden = false; hud.show('menu'); G.chapter.load('counter'); player.placeAt(0, 3.6, 0); });
   } catch (err) { $('vrNote').textContent = 'Could not start VR: ' + (err && err.message || err); }
 });
@@ -81,8 +81,12 @@ canvas.addEventListener('contextmenu', ev => ev.preventDefault());
 document.addEventListener('keydown', ev => {
   if (mode !== 'desktop' || ev.repeat) return;
   if (ev.code === 'Space') { ev.preventDefault(); if (G.state === 'playing') player.jumpQueued = true; }
+  if (ev.code === 'KeyM') setMusic(!G.music.on);
   G.key(ev.code);
 });
+function setMusic(v) { G.music.set(v); $('musicBtn').textContent = 'Music: ' + (v ? 'on' : 'off'); }
+$('musicBtn').textContent = 'Music: ' + (G.music.on ? 'on' : 'off');
+$('musicBtn').addEventListener('click', () => { startAudio(); setMusic(!G.music.on); });
 
 /* ---------- loop ---------- */
 const tips = [{ id: 'left', pos: new THREE.Vector3() }, { id: 'right', pos: new THREE.Vector3() }];
