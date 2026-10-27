@@ -46,7 +46,7 @@ export function createGame({ renderer, scene, camera, rig, world, player, hud, b
   G.stun = createStunned({ player, arms: G.arms, G });
   G.hazards = createHazards({ fx: G.fx, player, enemies: G.enemies, G });
   G.boss = createBoss({ scene, cast: G.cast, enemies: G.enemies, fx: G.fx, player, G });
-  G.voice = createVoice({ where: who => { const e = G.enemies.list.find(x => (who === 'expediter' ? x.boss : who === 'grabber' ? x.type === 'grabber' : !x.boss)); return e ? e.group.position.clone().setY(1.6) : null; } });
+  G.voice = createVoice({ where: who => { if (who === 'mo' && G.mo) return G.mo.group.position.clone().setY(1.8); const e = G.enemies.list.find(x => (who === 'expediter' ? x.boss : who === 'grabber' ? x.type === 'grabber' : !x.boss)); return e ? e.group.position.clone().setY(1.6) : null; } });
   G.cards = createCards({ scene, camera });
   G.canShoot = () => G.stun.canShoot();
   G.muzzleFlash = () => {};
@@ -54,7 +54,13 @@ export function createGame({ renderer, scene, camera, rig, world, player, hud, b
   /* ---------- the chapter and its beats ---------- */
   const chapter = createChapter({ scene, camera, world, player, data: { SPACES, BEATS, SET_PIECES }, on: {
     out: o => onOut(o),
-    spaceLoaded: space => { leaveSpace(); G.space = space; G.setPiece.attach(space); },
+    spaceLoaded: space => {
+      leaveSpace(); G.space = space; G.setPiece.attach(space); G.mo = null;
+      if (space.sp.id === 'counter') { // Mo waits at the counter with you, until the roller door cuts him off
+        G.mo = G.cast.buildMo(); G.mo.group.position.set(-1.25, 0, .65); G.mo.group.rotation.y = Math.PI - .5; space.root.add(G.mo.group);
+        world.addBox([-1.25, 0, .65], [.6, 1.9, .5], { kind: 'mo' });
+      }
+    },
     blocked: () => (G.bag.held() ? null : G.bag.onCounter ? "DON'T FORGET THE BAG" : 'GET THE BAG BACK'),
   } });
   G.chapter = chapter;
@@ -84,6 +90,7 @@ export function createGame({ renderer, scene, camera, rig, world, player, hud, b
   function onTrigger(id) {
     G.say(id);
     if (id === 'expediter:start') G.boss.start();
+    if (id === 'pickup:rollerDoor') G.moOnRadio = true;
     if (id === 'freezer:sealed') { const d = chapter.space && chapter.space.door('freezer>fryerLine'); if (d) { d.forceOpen = 0; d.target = 0; d.speed = 4; } hud.message('LOCKED IN', 1.4); }
     if (id === 'setpiece:bounty:done') { G.bounty = 50000; G.wristDirty = true; hud.bounty = 50000; hud.dirty = true; }
     if (id === 'fryerFight:enter' || id === 'dock:enter') G.note = '';
@@ -95,7 +102,10 @@ export function createGame({ renderer, scene, camera, rig, world, player, hud, b
   G.say = trigger => { const lines = pickLines(LINES, trigger, 'solo', Math.random, lastPick); if (lines.length) radio = radioPush(radio, lines, realT); };
   function radioUpdate(realT) {
     const r = radioTick(radio, realT); radio = r.state;
-    if (r.started) { G.voice.say(r.started); hud.subtitle({ label: LABEL[r.started.who] || r.started.who.toUpperCase(), text: r.started.text, who: r.started.who }); G.wristDirty = true; }
+    if (r.started) {
+      const l = r.started, here = l.who === 'mo' && !G.moOnRadio; // at the counter Mo is right there, not on the radio
+      G.voice.say({ ...l, here }); hud.subtitle({ label: here ? 'MO' : LABEL[l.who] || l.who.toUpperCase(), text: l.text, who: l.who }); G.wristDirty = true;
+    }
     else if (!radio.now && hud.sub) { hud.subtitle(null); G.wristDirty = true; }
   }
 
@@ -157,7 +167,7 @@ export function createGame({ renderer, scene, camera, rig, world, player, hud, b
   G.start = () => {
     clearFight(); G.cards.hide(); title.keypad.group.visible = false;
     G.stats = { time: 0, kills: 0, headshots: 0, disarms: 0, breachKills: 0, gunStuns: 0, civilians: 0, stuns: 0 };
-    G.score = 0; G.bounty = 0; hud.bounty = 0; G.note = 'PICK UP ORDER #0447 AT THE COUNTER';
+    G.score = 0; G.bounty = 0; hud.bounty = 0; G.note = 'PICK UP ORDER #0447 AT THE COUNTER'; G.moOnRadio = false;
     checkpoint = null; cpExtra = null; G.restarting = false;
     player.hp = 8; player.greyTarget = 0; player.grey = 0; player.slow = 1;
     G.arms.reset(); G.stun.chapterStart();
@@ -214,6 +224,7 @@ export function createGame({ renderer, scene, camera, rig, world, player, hud, b
     G.stun.update(chapter.t);
     G.hazards.update(dt);
     G.setPiece.update(realDt);
+    if (G.mo) G.mo.update(t);
     chapter.update(dt, realDt);
     for (const d of G.debris.slice()) { d.life -= dt; d.v.y -= 9.8 * dt; d.m.position.addScaledVector(d.v, dt); if (d.m.position.y < .03) { d.m.position.y = .03; d.v.set(0, 0, 0); } if (d.life <= 0) { scene.remove(d.m); G.debris.splice(G.debris.indexOf(d), 1); } }
     G.fx.update(dt, realDt);

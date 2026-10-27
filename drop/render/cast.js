@@ -9,7 +9,8 @@ import { box, cyl, plane, F, mk, mergeInto, meshesUnder } from './geo.js';
 
 const T = { ...TEXTURES, ...SURFACES };
 const NEEDED = ['chefFront', 'apron', 'houndstooth', 'hairnet', 'chefSide', 'chefSleeve', 'cookSide', 'cookBack', 'hair', 'clog', 'skinCook', 'black', 'wood',
-  'cleaver', 'tray', 'pants', 'apronRed', 'bandana', 'chefBlackFront', 'chefBlackSide', 'chefBlackSleeve', 'slide', 'brushedSteel', 'pan'];
+  'cleaver', 'tray', 'pants', 'apronRed', 'bandana', 'chefBlackFront', 'chefBlackSide', 'chefBlackSleeve', 'slide', 'brushedSteel', 'pan',
+  'moShellFront', 'moShellSide', 'moShellBack', 'moSleeve', 'jeans', 'boot', 'beanie', 'moHeadSide', 'moHeadBack', 'beanieFold', 'hoodie', 'glove', 'strap', 'bagFront', 'bagSide', 'kraft'];
 
 /** How each enemy type dresses and what it carries. kind is the shared AI/animation class. */
 export const OUTFITS = {
@@ -25,6 +26,7 @@ export function createCast() {
   const imgs = {};
   for (const n of NEEDED) imgs[n] = T[n]();
   for (const ex of /** @type {const} */ (['neutral', 'hurt', 'scared', 'dazed'])) imgs['face_' + ex] = faceImg('cook', ex);
+  imgs.face_mo = faceImg('mo');
   const atlas = createAtlas(imgs, { cut: true });
   const A = (n, o) => atlas.mat(n, o);
 
@@ -186,7 +188,50 @@ export function createCast() {
     P.needsUpdate = true; N.needsUpdate = true; L.synced = r.asleep;
   }
 
-  return { atlas, FACE, faceMats, buildHead, buildBody, weaponFor, trayFor, panMesh, matsFor, capGeo, rbox, boxGeo, cylGeo, torsoRagGeo, shoeMat, beltMat, gunMat, stumpMat, ENEMY_GUN, syncRag,
+  /**
+   * Mo, standing at the pickup counter before the roller door cuts him off: the art test's model, segmented and
+   * merged into two meshes (his head turns on its own). Returns { group, update(t) }.
+   */
+  function buildMo() {
+    const o = { thigh: .45, shin: .43, foot: .09, hipW: .36, hipD: .24, legW: .16, footW: .13, footL: .3, waistW: .4, shoulderW: .52, torso: .55, torsoD: .27, headW: .21, headH: .24, headD: .23, armW: .13, upper: .3, fore: .28 };
+    const jeans = A('jeans'), boot = A('boot'), sleeve = A('moSleeve'), glove = A('glove'), skin = A('moHeadSide');
+    const root = new THREE.Group(), body = new THREE.Group(); root.add(body);
+    const hipsY = o.thigh + o.shin + o.foot, hips = new THREE.Group(); hips.position.y = hipsY; body.add(hips);
+    mk(hips, box(o.hipW, .2, o.hipD), jeans, 0, .02, 0);
+    for (const s of [1, -1]) {
+      const th = new THREE.Group(); th.position.set(s * o.hipW * .26, -.04, 0); th.rotation.z = s * .03; hips.add(th);
+      mk(th, box(o.legW, o.thigh, o.legW * 1.05, { tw: 1.12, td: 1.1, pivot: 't' }), jeans);
+      const kn = new THREE.Group(); kn.position.y = -o.thigh; th.add(kn);
+      mk(kn, box(o.legW * .86, o.shin, o.legW * .9, { tw: 1.16, td: 1.12, pivot: 't' }), jeans);
+      mk(kn, box(o.footW, o.foot, o.footL, { at: [0, -o.shin - o.foot / 2, o.footL * .22] }), boot);
+    }
+    const spine = new THREE.Group(); spine.position.y = .1; hips.add(spine);
+    mk(spine, box(o.waistW, o.torso, o.torsoD, { tw: o.shoulderW / o.waistW, td: 1.06, pivot: 'b' }), F(A('moShellSide'), A('moShellFront'), A('moShellBack')));
+    mk(spine, box(.3, .09, .27, { tw: .85, td: .85 }), A('moShellSide'), 0, o.torso - .03, 0);
+    mk(spine, box(.3, .1, .12), A('hoodie'), 0, o.torso - .01, -.12, .3, 0, 0);
+    mk(spine, box(.46, .48, .34), F(A('bagSide'), A('bagFront'), A('bagFront'), A('bagSide'), A('bagSide')), 0, .3, -.31);
+    for (const s of [1, -1]) mk(spine, box(.05, .5, .03), A('strap'), s * .13, .32, .145);
+    for (const s of [1, -1]) {
+      const sh = new THREE.Group(); sh.position.set(s * (o.shoulderW / 2 + o.armW * .3), o.torso - .06, 0); sh.rotation.set(s > 0 ? .04 : -.12, 0, s * .1); spine.add(sh);
+      mk(sh, box(o.armW, o.upper, o.armW, { tw: 1.12, td: 1.1, pivot: 't' }), sleeve);
+      const el = new THREE.Group(); el.position.y = -o.upper; el.rotation.x = s > 0 ? -.12 : -.35; sh.add(el);
+      mk(el, box(o.armW * .86, o.fore, o.armW * .86, { tw: 1.14, td: 1.1, pivot: 't' }), sleeve);
+      mk(el, box(o.armW * .8, .11, o.armW * 1.05, { at: [0, -o.fore - .055, 0] }), glove);
+      if (s < 0) mk(el, box(.17, .22, .11), F(A('kraft'), A('kraft')), 0, -o.fore - .2, .02);
+    }
+    const head = new THREE.Group(); head.position.set(0, hipsY + .1 + o.torso + .06, 0); root.add(head);
+    mk(head, box(o.headW, o.headH, o.headD, { at: [0, o.headH / 2, 0] }), F(skin, A('face_mo'), A('moHeadBack'), skin));
+    mk(head, box(.23, .1, .25, { at: [0, .26, 0], tw: .9, td: .9 }), A('beanie'));
+    mk(head, box(.235, .05, .255, { at: [0, .215, 0] }), F(A('beanieFold'), A('beanieFold')));
+    root.updateMatrixWorld(true);
+    mergeInto(body, meshesUnder(body), atlas.remap, tintFor); mergeInto(head, meshesUnder(head), atlas.remap, tintFor);
+    return {
+      group: root,
+      update(t) { const br = Math.sin(t * 1.7); body.scale.y = 1 + br * .006; head.rotation.y = Math.sin(t * .45) * .35; head.rotation.x = br * .02; },
+    };
+  }
+
+  return { atlas, FACE, faceMats, buildMo, buildHead, buildBody, weaponFor, trayFor, panMesh, matsFor, capGeo, rbox, boxGeo, cylGeo, torsoRagGeo, shoeMat, beltMat, gunMat, stumpMat, ENEMY_GUN, syncRag,
     setExpr(e, ex) { if (ex !== e.expr && e.face) { e.expr = ex; e.face.material = faceMats[ex] || FACE.neutral; } } };
 }
 

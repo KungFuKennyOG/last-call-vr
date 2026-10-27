@@ -21,14 +21,15 @@ export function createVoice({ where } = {}) {
     [[0, 1046.5], [.09, 1568], [.18, 2093]].forEach(([d, f]) => { const o = osc('sine', f, t + d, .18), g = gain(); env(g, t + d, .004, .1, .16); o.connect(g).connect(sfxBus); });
   }
   function radioClick(t, out) { const n = noise(t, .05), f = filt('highpass', 2500), g = gain(); env(g, t, .001, .25, .04); n.connect(f).connect(g).connect(out); }
-  /** Speak a line: { who, text, dur }. */
+  /** Speak a line: { who, text, dur, here? } (here: the speaker is in the room, not on the radio). */
   function say(line) {
     if (!on || !actx) return;
     if (line.who === 'app') { chime(); return; }
     const V = VOICES[line.who] || VOICES.cook, t0 = now();
-    const pos = !V.radio && where ? where(line.who) : null, out = pos ? outAt(pos) : sfxBus;
-    const bus = gain(); bus.gain.value = V.radio ? .5 : .7;
-    if (V.radio) { const bp = filt('bandpass', 1500, 1.2), hp = filt('highpass', 500); bus.connect(hp).connect(bp).connect(out); radioClick(t0, out); }
+    const radio = V.radio && !line.here; // Mo in the room with you sounds like Mo, not a radio
+    const pos = !radio && where ? where(line.who) : null, out = pos ? outAt(pos) : sfxBus;
+    const bus = gain(); bus.gain.value = radio ? .5 : .7;
+    if (radio) { const bp = filt('bandpass', 1500, 1.2), hp = filt('highpass', 500); bus.connect(hp).connect(bp).connect(out); radioClick(t0, out); }
     else bus.connect(out);
     const dur = Math.min(line.dur * .75, 4.5), n = Math.max(2, Math.round(dur * V.rate));
     let seed = line.text.length * 97;
@@ -41,7 +42,7 @@ export function createVoice({ where } = {}) {
       const o = osc(V.wave, f, t, len), form = filt('bandpass', V.formant * (.8 + rnd() * .5), 3), g = gain();
       env(g, t, .008, shout ? .5 : .32, len); o.connect(form).connect(g).connect(bus);
     }
-    if (V.radio) radioClick(t0 + .05 + n / V.rate, out);
+    if (radio) radioClick(t0 + .05 + n / V.rate, out);
   }
   return { say, set: v => { on = v; }, get on() { return on; } };
 }
